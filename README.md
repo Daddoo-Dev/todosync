@@ -37,8 +37,17 @@ To sync:
 
 ## Notion Database Setup
 
+### Basic Mode
 Each database must have:
 - A title property (for the task text)
-- A checkbox property (for completion status)
+- A status property (for task status)
 
-The extension automatically finds these properties.
+### Centralized Mode (Recommended)
+Use ONE database for all projects:
+- A title property (for the task text)
+- A status property (for task status)
+- A **Project** property (Select type) with your project names
+
+When linking, you'll select which project to filter tasks by. This allows all your VS Code workspaces to share one centralized task database!
+
+See `CENTRALIZED_MODE_GUIDE.md` for detailed setup instructions.

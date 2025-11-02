@@ -22,21 +22,38 @@ class NotionClientWrapper {
         this.client = new client_1.Client({ auth: apiKey });
     }
     async listDatabases() {
-        const res = await this.client.search({
-            filter: { property: 'object', value: 'database' },
-            sort: { direction: 'ascending', timestamp: 'last_edited_time' }
+        const databases = [];
+        let cursor = undefined;
+        let pageCount = 0;
+        do {
+            pageCount++;
+            console.log(`[ToDoSync] Fetching databases page ${pageCount}, cursor: ${cursor || 'initial'}`);
+            const res = await this.client.search({
+                filter: { property: 'object', value: 'database' },
+                sort: { direction: 'ascending', timestamp: 'last_edited_time' },
+                start_cursor: cursor,
+                page_size: 100
+            });
+            console.log(`[ToDoSync] Page ${pageCount}: found ${res.results.length} databases, has_more: ${res.has_more}, next_cursor: ${res.next_cursor || 'null'}`);
+            databases.push(...res.results.map((r) => ({
+                id: r.id,
+                title: r.title?.[0]?.plain_text || 'Untitled'
+            })));
+            cursor = res.next_cursor || undefined;
+            if (!res.has_more)
+                cursor = undefined;
+        } while (cursor);
+        console.log(`[ToDoSync] Total databases fetched: ${databases.length}`);
+        databases.forEach((db, idx) => {
+            console.log(`[ToDoSync] DB ${idx + 1}: ${db.title} (${db.id})`);
         });
-        return res.results
-            .map((r) => ({
-            id: r.id,
-            title: r.title?.[0]?.plain_text || 'Untitled'
-        }));
+        return databases;
     }
-    async getTasks(databaseId, pageSize = 200) {
+    async getTasks(databaseId, pageSize = 200, projectFilter) {
         const tasks = [];
         let cursor = undefined;
         do {
-            const page = await this.client.databases.query({
+            const queryOptions = {
                 database_id: databaseId,
                 start_cursor: cursor,
                 page_size: pageSize,
@@ -44,7 +61,15 @@ class NotionClientWrapper {
                     { property: 'Status', direction: 'ascending' },
                     { timestamp: 'last_edited_time', direction: 'descending' }
                 ]
-            });
+            };
+            // Add project filter if specified
+            if (projectFilter) {
+                queryOptions.filter = {
+                    property: 'Project',
+                    select: { equals: projectFilter }
+                };
+            }
+            const page = await this.client.databases.query(queryOptions);
             for (const r of page.results) {
                 const titleProp = Object.values(r.properties).find((p) => p.type === 'title');
                 const statusProp = r.properties['Status'];
@@ -73,6 +98,29 @@ class NotionClientWrapper {
             color: opt.color || 'default'
         }));
     }
+    async getProjectOptions(databaseId) {
+        try {
+            const db = await this.client.databases.retrieve({ database_id: databaseId });
+            const projectProp = db.properties?.Project;
+            if (!projectProp || projectProp.type !== 'select') {
+                return [];
+            }
+            return (projectProp.select?.options || []).map((opt) => opt.name);
+        }
+        catch (error) {
+            return [];
+        }
+    }
+    async hasProjectProperty(databaseId) {
+        try {
+            const db = await this.client.databases.retrieve({ database_id: databaseId });
+            const projectProp = db.properties?.Project;
+            return projectProp && projectProp.type === 'select';
+        }
+        catch (error) {
+            return false;
+        }
+    }
     getStatusEmoji(statusName, statusOptions) {
         if (statusOptions) {
             const option = statusOptions.find(opt => opt.name === statusName);
@@ -94,6 +142,30 @@ class NotionClientWrapper {
                 Status: { status: { name: status } }
             }
         });
+    }
+    async createTask(databaseId, title, defaultStatus, projectName) {
+        const db = await this.client.databases.retrieve({ database_id: databaseId });
+        const properties = {};
+        // Find title property
+        const titleProp = Object.entries(db.properties || {}).find(([_, p]) => p.type === 'title');
+        if (titleProp) {
+            properties[titleProp[0]] = {
+                title: [{ text: { content: title } }]
+            };
+        }
+        // Set status if provided
+        if (defaultStatus && db.properties?.Status) {
+            properties.Status = { status: { name: defaultStatus } };
+        }
+        // Set project if provided
+        if (projectName && db.properties?.Project) {
+            properties.Project = { select: { name: projectName } };
+        }
+        const page = await this.client.pages.create({
+            parent: { database_id: databaseId },
+            properties
+        });
+        return page.id;
     }
 }
 exports.NotionClientWrapper = NotionClientWrapper;

@@ -3,6 +3,7 @@ import { ConfigService, TrackedProject } from './configService';
 import { NotionClientWrapper, NotionTask } from '../notion/notionClient';
 import { ProjectTreeProvider, TaskItem } from '../tree/projectTreeProvider';
 import { log } from './log';
+import { LicenseService } from './licenseService';
 
 export class SyncService implements vscode.Disposable {
   private interval: NodeJS.Timeout | undefined;
@@ -11,7 +12,8 @@ export class SyncService implements vscode.Disposable {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly config: ConfigService,
-    private readonly tree: ProjectTreeProvider
+    private readonly tree: ProjectTreeProvider,
+    private readonly license: LicenseService | undefined
   ) {}
 
   dispose(): void {
@@ -40,6 +42,7 @@ export class SyncService implements vscode.Disposable {
 
     const client = new NotionClientWrapper(apiKey);
     const dbs = await client.listDatabases();
+    
     if (dbs.length === 0) {
       vscode.window.showWarningMessage('ToDoSync: No Notion databases accessible with this API key.');
       return;
@@ -55,15 +58,87 @@ export class SyncService implements vscode.Disposable {
       vscode.window.showErrorMessage('ToDoSync: No workspace folder found.');
       return;
     }
+
+    const selectedDbId = pick.description ?? '';
+
+    // Check if database has a Project property for centralized mode
+    const hasProjectProp = await client.hasProjectProperty(selectedDbId);
+    let projectName = folder.name;
+    
+    if (hasProjectProp) {
+      const projectOptions = await client.getProjectOptions(selectedDbId);
+      const items: vscode.QuickPickItem[] = [
+        ...projectOptions.map(p => ({ label: p, description: 'Existing project' })),
+        { label: '$(add) Create new project', description: 'Enter a custom project name' }
+      ];
+      
+      const projectPick = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select project or create new one (this filters tasks in the centralized database)'
+      });
+      
+      if (!projectPick) return;
+      
+      if (projectPick.label === '$(add) Create new project') {
+        const customName = await vscode.window.showInputBox({
+          prompt: 'Enter project name',
+          value: folder.name,
+          ignoreFocusOut: true
+        });
+        if (!customName || !customName.trim()) return;
+        projectName = customName.trim();
+      } else {
+        projectName = projectPick.label;
+      }
+      
+      vscode.window.showInformationMessage(
+        `ToDoSync: Using centralized database with project filter "${projectName}"`
+      );
+    }
+
+    // Freemium check: Free tier limited to 1 project (database + project combination)
+    if (this.license) {
+      const license = await this.license.checkLicense();
+      if (license?.tier === 'free') {
+        const currentProjects = this.config.getTrackedProjects();
+        
+        // Count unique project configurations (database + projectName combinations)
+        // Each unique combination counts as a separate project
+        const uniqueProjectConfigs = new Set(
+          currentProjects.map(p => `${p.notionDatabaseId}::${p.projectName}`)
+        );
+        
+        // Check if this is a new project configuration
+        const newConfigKey = `${selectedDbId}::${projectName}`;
+        if (!uniqueProjectConfigs.has(newConfigKey) && uniqueProjectConfigs.size >= 1) {
+          const choice = await vscode.window.showWarningMessage(
+            'ToDoSync Free: You can only sync 1 project. Upgrade to Pro for unlimited projects.',
+            'Upgrade to Pro',
+            'Cancel'
+          );
+          if (choice === 'Upgrade to Pro') {
+            // Open Stripe payment link with machine ID
+            const machineId = vscode.env.machineId;
+            const paymentUrl = `https://buy.stripe.com/14A3cu3Xu5jy3DG3C1gEg01?client_reference_id=${machineId}`;
+            vscode.env.openExternal(vscode.Uri.parse(paymentUrl));
+          }
+          return;
+        }
+      }
+    }
+
     const project: TrackedProject = {
       path: folder.uri.fsPath,
-      notionDatabaseId: pick.description ?? '',
-      projectName: folder.name
+      notionDatabaseId: selectedDbId,
+      projectName: projectName
     };
     const statusOptions = await client.getStatusOptions(project.notionDatabaseId);
     project.statusOptions = statusOptions;
     await this.config.addProject(project);
-    log.debug(`Linked workspace '${folder.name}' to database ${project.notionDatabaseId} with ${statusOptions.length} status option(s)`);
+    
+    // Log activity
+    await this.license?.logActivity('link_database', { workspace: folder.name });
+    
+    log.debug(`Linked workspace '${folder.name}' to database ${project.notionDatabaseId} with project filter "${projectName}" and ${statusOptions.length} status option(s)`);
     await this.syncCurrentWorkspace();
   }
 
@@ -83,10 +158,15 @@ export class SyncService implements vscode.Disposable {
       tracked.statusOptions = await client.getStatusOptions(tracked.notionDatabaseId);
       await this.config.addProject(tracked);
     }
-    const tasks = await client.getTasks(tracked.notionDatabaseId);
+    
+    // Check if database has Project property - if so, filter by projectName
+    const hasProjectProp = await client.hasProjectProperty(tracked.notionDatabaseId);
+    const projectFilter = hasProjectProp ? tracked.projectName : undefined;
+    
+    const tasks = await client.getTasks(tracked.notionDatabaseId, 200, projectFilter);
     const items = this.toTaskItems(tasks, tracked);
     this.tree.setItems(items);
-    log.debug(`Synced ${items.length} task(s) for workspace '${folder.name}'`);
+    log.debug(`Synced ${items.length} task(s) for workspace '${folder.name}' ${projectFilter ? `(project: ${projectFilter})` : ''}`);
   }
 
   async syncAllWorkspaces(): Promise<void> {
@@ -174,8 +254,12 @@ export class SyncService implements vscode.Disposable {
       defaultStatus = tracked.statusOptions[0].name;
     }
     
+    // Check if database has Project property - if so, include project name
+    const hasProjectProp = await client.hasProjectProperty(tracked.notionDatabaseId);
+    const projectName = hasProjectProp ? tracked.projectName : undefined;
+    
     try {
-      await client.createTask(tracked.notionDatabaseId, title.trim(), defaultStatus);
+      await client.createTask(tracked.notionDatabaseId, title.trim(), defaultStatus, projectName);
       vscode.window.showInformationMessage(`ToDoSync: Task "${title.trim()}" added.`);
       await this.syncCurrentWorkspace();
     } catch (error: any) {

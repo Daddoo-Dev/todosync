@@ -2,11 +2,11 @@
   "name": "todo-sync",
   "displayName": "ToDoSync",
   "description": "Sync VS Code workspace tasks with Notion projects (Status only)",
-  "version": "0.0.1",
-  "publisher": "local",
+  "version": "1.0.1",
+  "publisher": "YOUR_PUBLISHER_ID",
   "repository": {
     "type": "git",
-    "url": "https://example.com/todo-sync.git"
+    "url": "https://github.com/YOUR_USERNAME/todosync.git"
   },
   "icon": "todosync.png",
   "engines": {
@@ -107,7 +107,8 @@
   },
   "dependencies": {
     "@notionhq/client": "^2",
-    "dotenv": "^16"
+    "dotenv": "^16",
+    "@supabase/supabase-js": "^2"
   }
 }
 

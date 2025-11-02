@@ -2,14 +2,17 @@ import * as vscode from 'vscode';
 import { ProjectTreeProvider } from './tree/projectTreeProvider';
 import { SyncService } from './services/syncService';
 import { ConfigService } from './services/configService';
+import { LicenseService } from './services/licenseService';
 
 let treeProvider: ProjectTreeProvider | undefined;
 let syncService: SyncService | undefined;
+let licenseService: LicenseService | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
   const configService = new ConfigService(context);
+  licenseService = new LicenseService(context);
   treeProvider = new ProjectTreeProvider(configService);
-  syncService = new SyncService(context, configService, treeProvider);
+  syncService = new SyncService(context, configService, treeProvider, licenseService);
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('todo-sync-projects', treeProvider),

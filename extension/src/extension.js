@@ -39,12 +39,15 @@ const vscode = __importStar(require("vscode"));
 const projectTreeProvider_1 = require("./tree/projectTreeProvider");
 const syncService_1 = require("./services/syncService");
 const configService_1 = require("./services/configService");
+const licenseService_1 = require("./services/licenseService");
 let treeProvider;
 let syncService;
+let licenseService;
 async function activate(context) {
     const configService = new configService_1.ConfigService(context);
+    licenseService = new licenseService_1.LicenseService(context);
     treeProvider = new projectTreeProvider_1.ProjectTreeProvider(configService);
-    syncService = new syncService_1.SyncService(context, configService, treeProvider);
+    syncService = new syncService_1.SyncService(context, configService, treeProvider, licenseService);
     context.subscriptions.push(vscode.window.registerTreeDataProvider('todo-sync-projects', treeProvider), vscode.commands.registerCommand('todo-sync.setApiKey', async () => {
         const token = await vscode.window.showInputBox({
             prompt: 'Enter Notion API key (secret_xxx)',
@@ -64,6 +67,8 @@ async function activate(context) {
         await syncService?.syncAllWorkspaces();
     }), vscode.commands.registerCommand('todo-sync.toggleStatus', async (item) => {
         await syncService?.toggleStatus(item);
+    }), vscode.commands.registerCommand('todo-sync.addTask', async () => {
+        await syncService?.addTask();
     }));
     // initial auto-refresh setup
     syncService.startAutoRefresh();

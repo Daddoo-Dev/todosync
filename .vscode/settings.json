@@ -23,6 +23,25 @@
                     "color": "green"
                 }
             ]
+        },
+        {
+            "path": "c:\\Users\\shawn\\Documents\\github\\todosync",
+            "notionDatabaseId": "29e78860-176f-80ed-905b-e1b8f7c2adc4",
+            "projectName": "TodoSync",
+            "statusOptions": [
+                {
+                    "name": "Not started",
+                    "color": "default"
+                },
+                {
+                    "name": "In progress",
+                    "color": "blue"
+                },
+                {
+                    "name": "Done",
+                    "color": "green"
+                }
+            ]
         }
     ]
 }

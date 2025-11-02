@@ -19,7 +19,10 @@ function notionColorToEmoji(color) {
 }
 class NotionClientWrapper {
     constructor(apiKey) {
-        this.client = new client_1.Client({ auth: apiKey });
+        this.client = new client_1.Client({
+            auth: apiKey,
+            notionVersion: '2025-09-03' // Supports multi-datasource databases
+        });
     }
     async listDatabases() {
         const databases = [];
@@ -27,14 +30,12 @@ class NotionClientWrapper {
         let pageCount = 0;
         do {
             pageCount++;
-            console.log(`[ToDoSync] Fetching databases page ${pageCount}, cursor: ${cursor || 'initial'}`);
             const res = await this.client.search({
-                filter: { property: 'object', value: 'database' },
+                filter: { property: 'object', value: 'data_source' },
                 sort: { direction: 'ascending', timestamp: 'last_edited_time' },
                 start_cursor: cursor,
                 page_size: 100
             });
-            console.log(`[ToDoSync] Page ${pageCount}: found ${res.results.length} databases, has_more: ${res.has_more}, next_cursor: ${res.next_cursor || 'null'}`);
             databases.push(...res.results.map((r) => ({
                 id: r.id,
                 title: r.title?.[0]?.plain_text || 'Untitled'
@@ -43,10 +44,6 @@ class NotionClientWrapper {
             if (!res.has_more)
                 cursor = undefined;
         } while (cursor);
-        console.log(`[ToDoSync] Total databases fetched: ${databases.length}`);
-        databases.forEach((db, idx) => {
-            console.log(`[ToDoSync] DB ${idx + 1}: ${db.title} (${db.id})`);
-        });
         return databases;
     }
     async getTasks(databaseId, pageSize = 200, projectFilter) {

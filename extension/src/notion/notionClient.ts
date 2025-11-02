@@ -33,7 +33,10 @@ export class NotionClientWrapper {
   private client: Client;
 
   constructor(apiKey: string) {
-    this.client = new Client({ auth: apiKey });
+    this.client = new Client({ 
+      auth: apiKey,
+      notionVersion: '2025-09-03'  // Supports multi-datasource databases
+    });
   }
 
   async listDatabases(): Promise<{ id: string; title: string }[]> {
@@ -44,7 +47,7 @@ export class NotionClientWrapper {
     do {
       pageCount++;
       const res = await this.client.search({
-        filter: { property: 'object', value: 'database' },
+        filter: { property: 'object', value: 'data_source' },
         sort: { direction: 'ascending', timestamp: 'last_edited_time' },
         start_cursor: cursor,
         page_size: 100
@@ -64,38 +67,171 @@ export class NotionClientWrapper {
 
   async getTasks(databaseId: string, pageSize = 200, projectFilter?: string): Promise<NotionTask[]> {
     const tasks: NotionTask[] = [];
-    let cursor: string | undefined = undefined;
-    do {
-      const queryOptions: any = {
-        database_id: databaseId,
-        start_cursor: cursor,
-        page_size: pageSize,
-        sorts: [
-          { property: 'Status', direction: 'ascending' },
-          { timestamp: 'last_edited_time', direction: 'descending' }
-        ]
-      };
-
-      // Add project filter if specified
+    
+    // Multi-datasource databases can't be queried directly, need to use search
+    const db = await this.client.databases.retrieve({ database_id: databaseId });
+    const isMultiDatasource = (db as any).data_sources && (db as any).data_sources.length > 0;
+    
+    if (isMultiDatasource) {
+      // Use search API for multi-datasource databases
+      let cursor: string | undefined = undefined;
+      let projectRelationId: string | undefined = undefined;
+      
+      // If filtering by project name, first find the project ID
       if (projectFilter) {
-        queryOptions.filter = {
-          property: 'Project',
-          select: { equals: projectFilter }
+        const projectOptions = await this.getProjectOptionsWithIds(databaseId);
+        const project = projectOptions.find(p => p.name === projectFilter);
+        projectRelationId = project?.id;
+        console.log(`[DEBUG] Filtering by project: "${projectFilter}", ID: ${projectRelationId}`);
+      }
+      
+      do {
+        const searchResults = await this.client.search({
+          filter: { property: 'object', value: 'page' },
+          page_size: pageSize,
+          start_cursor: cursor
+        } as any);
+        
+        for (const r of searchResults.results as any[]) {
+          // Only include pages from this database
+          if (r.parent?.type === 'data_source_id' || r.parent?.type === 'database_id') {
+            // Check project filter if specified
+            if (projectRelationId) {
+              const projProp = r.properties?.['Project (Relation)'] || r.properties?.Project;
+              if (projProp?.type === 'relation') {
+                const relations = projProp.relation || [];
+                const hasProject = relations.some((rel: any) => rel.id === projectRelationId);
+                console.log(`[DEBUG] Page: ${r.id}, Has matching project: ${hasProject}, Relations: ${relations.map((rel: any) => rel.id).join(', ')}`);
+                if (!hasProject) continue;
+              } else {
+                console.log(`[DEBUG] Page: ${r.id}, No relation property, skipping`);
+                continue; // Skip if no relation property
+              }
+            }
+            
+            const titleProp = Object.values(r.properties).find((p: any) => p.type === 'title') as any;
+            const statusProp = (r.properties['Status'] as any);
+            const title = (titleProp?.title?.[0]?.plain_text) || 'Untitled';
+            const status = statusProp?.status?.name || 'Not started';
+            tasks.push({ id: r.id, title, status, lastEditedTime: r.last_edited_time });
+          }
+        }
+        
+        cursor = (searchResults as any).next_cursor || undefined;
+        if (!(searchResults as any).has_more) cursor = undefined;
+      } while (cursor);
+    } else {
+      // Use standard query for regular databases
+      let cursor: string | undefined = undefined;
+      do {
+        const queryOptions: any = {
+          database_id: databaseId,
+          start_cursor: cursor,
+          page_size: pageSize,
+          sorts: [
+            { property: 'Status', direction: 'ascending' },
+            { timestamp: 'last_edited_time', direction: 'descending' }
+          ]
         };
-      }
 
-      const page = await this.client.databases.query(queryOptions);
-      for (const r of page.results as any[]) {
-        const titleProp = Object.values(r.properties).find((p: any) => p.type === 'title') as any;
-        const statusProp = (r.properties['Status'] as any);
-        const title = (titleProp?.title?.[0]?.plain_text) || 'Untitled';
-        const status = statusProp?.status?.name || 'Not started';
-        tasks.push({ id: r.id, title, status, lastEditedTime: r.last_edited_time });
-      }
-      cursor = (page as any).next_cursor || undefined;
-      if (!(page as any).has_more) cursor = undefined;
-    } while (cursor);
+        // Add project filter if specified
+        if (projectFilter) {
+          const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
+          if (projectProp?.type === 'select') {
+            queryOptions.filter = {
+              property: projectProp.name || 'Project',
+              select: { equals: projectFilter }
+            };
+          }
+        }
+
+        const page = await this.client.databases.query(queryOptions);
+        for (const r of page.results as any[]) {
+          const titleProp = Object.values(r.properties).find((p: any) => p.type === 'title') as any;
+          const statusProp = (r.properties['Status'] as any);
+          const title = (titleProp?.title?.[0]?.plain_text) || 'Untitled';
+          const status = statusProp?.status?.name || 'Not started';
+          tasks.push({ id: r.id, title, status, lastEditedTime: r.last_edited_time });
+        }
+        cursor = (page as any).next_cursor || undefined;
+        if (!(page as any).has_more) cursor = undefined;
+      } while (cursor);
+    }
+    
     return tasks;
+  }
+  
+  private async getProjectOptionsWithIds(databaseId: string): Promise<{ id: string; name: string }[]> {
+    try {
+      const db = await this.client.databases.retrieve({ database_id: databaseId });
+      const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
+      const isMultiDatasource = (db as any).data_sources && (db as any).data_sources.length > 0;
+      
+      console.log(`[DEBUG getProjectOptionsWithIds] projectProp type: ${projectProp?.type}, isMultiDatasource: ${isMultiDatasource}`);
+      
+      if (!projectProp && !isMultiDatasource) {
+        console.log(`[DEBUG getProjectOptionsWithIds] No project prop and not multi-datasource, returning []`);
+        return [];
+      }
+      
+      if (projectProp && projectProp.type !== 'relation' && !isMultiDatasource) {
+        console.log(`[DEBUG getProjectOptionsWithIds] Project prop is not relation and not multi-datasource, returning []`);
+        return [];
+      }
+      
+      const projectIds = new Set<string>();
+      let cursor: string | undefined = undefined;
+      
+      do {
+        const searchResults = await this.client.search({
+          filter: { property: 'object', value: 'page' },
+          page_size: 100,
+          start_cursor: cursor
+        } as any);
+        
+        for (const page of searchResults.results as any[]) {
+          if (page.parent?.type === 'data_source_id' || page.parent?.type === 'database_id') {
+            const pageProp = page.properties?.['Project (Relation)'] || page.properties?.Project;
+            if (pageProp && pageProp.type === 'relation') {
+              const relations = pageProp.relation || [];
+              relations.forEach((rel: any) => projectIds.add(rel.id));
+            }
+          }
+        }
+        
+        cursor = (searchResults as any).next_cursor || undefined;
+        if (!(searchResults as any).has_more) cursor = undefined;
+      } while (cursor);
+      
+      console.log(`[DEBUG getProjectOptionsWithIds] Found ${projectIds.size} unique project IDs`);
+      
+      const projects: { id: string; name: string }[] = [];
+      for (const projectId of projectIds) {
+        try {
+          const projectPage = await this.client.pages.retrieve({ page_id: projectId });
+          const props = (projectPage as any).properties || {};
+          
+          for (const prop of Object.values(props)) {
+            if ((prop as any).type === 'title') {
+              const titleItems = (prop as any).title || [];
+              if (titleItems.length > 0) {
+                const name = titleItems[0].plain_text || 'Untitled';
+                projects.push({ id: projectId, name });
+                console.log(`[DEBUG getProjectOptionsWithIds] Found project: ${name} (${projectId})`);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          // Skip
+        }
+      }
+      
+      return projects;
+    } catch (error) {
+      console.log(`[DEBUG getProjectOptionsWithIds] Error: ${error}`);
+      return [];
+    }
   }
 
   async getStatusOptions(databaseId: string): Promise<StatusOption[]> {
@@ -117,11 +253,68 @@ export class NotionClientWrapper {
   async getProjectOptions(databaseId: string): Promise<string[]> {
     try {
       const db = await this.client.databases.retrieve({ database_id: databaseId });
-      const projectProp = (db as any).properties?.Project;
-      if (!projectProp || projectProp.type !== 'select') {
-        return [];
+      const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
+      const isMultiDatasource = (db as any).data_sources && (db as any).data_sources.length > 0;
+      
+      // Handle old select-based projects
+      if (projectProp && projectProp.type === 'select') {
+        return (projectProp.select?.options || []).map((opt: any) => opt.name);
       }
-      return (projectProp.select?.options || []).map((opt: any) => opt.name);
+      
+      // Handle new relation-based projects or multi-datasource databases
+      if ((projectProp && projectProp.type === 'relation') || isMultiDatasource) {
+        // Search for all pages to find unique project relations
+        const projectIds = new Set<string>();
+        let cursor: string | undefined = undefined;
+        
+        do {
+          const searchResults = await this.client.search({
+            filter: { property: 'object', value: 'page' },
+            page_size: 100,
+            start_cursor: cursor
+          } as any);
+          
+          for (const page of searchResults.results as any[]) {
+            // Check if this page belongs to our database
+            if (page.parent?.type === 'data_source_id' || page.parent?.type === 'database_id') {
+              const pageProp = page.properties?.['Project (Relation)'] || page.properties?.Project;
+              if (pageProp && pageProp.type === 'relation') {
+                const relations = pageProp.relation || [];
+                relations.forEach((rel: any) => projectIds.add(rel.id));
+              }
+            }
+          }
+          
+          cursor = (searchResults as any).next_cursor || undefined;
+          if (!(searchResults as any).has_more) cursor = undefined;
+        } while (cursor);
+        
+        // Fetch project names
+        const projectNames: string[] = [];
+        for (const projectId of projectIds) {
+          try {
+            const projectPage = await this.client.pages.retrieve({ page_id: projectId });
+            const props = (projectPage as any).properties || {};
+            
+            // Find the title property
+            for (const prop of Object.values(props)) {
+              if ((prop as any).type === 'title') {
+                const titleItems = (prop as any).title || [];
+                if (titleItems.length > 0) {
+                  projectNames.push(titleItems[0].plain_text || 'Untitled');
+                  break;
+                }
+              }
+            }
+          } catch (error) {
+            // Skip if we can't fetch this project
+          }
+        }
+        
+        return projectNames.sort();
+      }
+      
+      return [];
     } catch (error) {
       return [];
     }
@@ -129,9 +322,48 @@ export class NotionClientWrapper {
 
   async hasProjectProperty(databaseId: string): Promise<boolean> {
     try {
-      const db = await this.client.databases.retrieve({ database_id: databaseId });
-      const projectProp = (db as any).properties?.Project;
-      return projectProp && projectProp.type === 'select';
+      let db: any;
+      try {
+        db = await this.client.databases.retrieve({ database_id: databaseId });
+      } catch (dbError: any) {
+        // If we can't retrieve the database, assume no project property
+        if (dbError.code === 'object_not_found') {
+          return false;
+        }
+        throw dbError;
+      }
+      
+      // Check if database has properties directly (regular database)
+      const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
+      if (projectProp && (projectProp.type === 'select' || projectProp.type === 'relation')) {
+        return true;
+      }
+      
+      // For multi-datasource databases, check sample pages from the data sources
+      const isMultiDatasource = (db as any).data_sources && (db as any).data_sources.length > 0;
+      if (isMultiDatasource) {
+        const dataSources = (db as any).data_sources || [];
+        
+        // Search pages from each data source
+        for (const dataSource of dataSources) {
+          const searchResults = await this.client.search({
+            filter: { property: 'object', value: 'page' },
+            page_size: 10
+          } as any);
+          
+          // Look for pages that belong to any data source in this multi-datasource db
+          for (const result of searchResults.results as any[]) {
+            if (result.parent?.type === 'data_source_id') {
+              const pageProp = result.properties?.['Project (Relation)'] || result.properties?.Project;
+              if (pageProp && (pageProp.type === 'select' || pageProp.type === 'relation')) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      
+      return false;
     } catch (error) {
       return false;
     }
@@ -179,8 +411,23 @@ export class NotionClientWrapper {
     }
     
     // Set project if provided
-    if (projectName && (db as any).properties?.Project) {
-      properties.Project = { select: { name: projectName } };
+    if (projectName) {
+      const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
+      
+      if (projectProp?.type === 'select') {
+        // Old select-based project
+        properties[projectProp.name || 'Project'] = { select: { name: projectName } };
+      } else if (projectProp?.type === 'relation') {
+        // New relation-based project - find the project ID
+        const projects = await this.getProjectOptionsWithIds(databaseId);
+        const project = projects.find(p => p.name === projectName);
+        
+        if (project) {
+          properties[projectProp.name || 'Project (Relation)'] = {
+            relation: [{ id: project.id }]
+          };
+        }
+      }
     }
     
     const page = await this.client.pages.create({

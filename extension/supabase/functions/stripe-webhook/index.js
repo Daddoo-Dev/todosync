@@ -79,11 +79,10 @@ async function handleCheckoutSessionCompleted(event, supabase) {
     const session = event.data.object;
     const customerId = session.customer;
     const subscriptionId = session.subscription;
-    // Extract metadata (we'll need to pass vs_code_machine_id in metadata)
-    const metadata = session.metadata || {};
-    const machineId = metadata.vs_code_machine_id;
+    // Extract machine ID from client_reference_id (passed via URL parameter)
+    const machineId = session.client_reference_id;
     if (!machineId) {
-        console.error('No machine_id in metadata');
+        console.error('No machine_id in client_reference_id');
         return false;
     }
     // Find or create license

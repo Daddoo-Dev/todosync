@@ -124,11 +124,12 @@ class SyncService {
                 const newConfigKey = `${selectedDbId}::${projectName}`;
                 if (!uniqueProjectConfigs.has(newConfigKey) && uniqueProjectConfigs.size >= 1) {
                     const choice = await vscode.window.showWarningMessage('ToDoSync Free: You can only sync 1 project. Upgrade to Pro for unlimited projects.', 'Upgrade to Pro', 'Cancel');
-                    if (choice !== 'Upgrade to Pro') {
-                        return;
+                    if (choice === 'Upgrade to Pro') {
+                        // Open Stripe payment link with machine ID
+                        const machineId = vscode.env.machineId;
+                        const paymentUrl = `https://buy.stripe.com/14A3cu3Xu5jy3DG3C1gEg01?client_reference_id=${machineId}`;
+                        vscode.env.openExternal(vscode.Uri.parse(paymentUrl));
                     }
-                    // TODO: Open payment/upgrade flow
-                    vscode.window.showInformationMessage('Upgrade flow coming soon! Visit https://todosync.dev to upgrade.');
                     return;
                 }
             }

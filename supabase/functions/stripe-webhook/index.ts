@@ -1,5 +1,5 @@
 // Stripe Webhook Handler for ToDoSync
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 interface StripeEvent {
@@ -21,6 +21,14 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Only accept POST requests
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     // Get Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -31,11 +39,9 @@ Deno.serve(async (req) => {
     const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
     const stripeSignature = req.headers.get('stripe-signature');
 
-    // Verify webhook signature (in production)
-    if (stripeWebhookSecret && stripeSignature) {
-      // TODO: Verify signature using stripe library
-      // For now, we'll process without verification in development
-    }
+    // TODO: Implement proper Stripe signature verification
+    // For now, we're accepting all requests (signature verification commented out)
+    // In production, use @stripe/stripe-js or crypto to verify the signature
 
     // Parse event
     const event: StripeEvent = await req.json();

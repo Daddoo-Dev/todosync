@@ -48,6 +48,66 @@ export async function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('todo-sync.addTask', async () => {
       await syncService?.addTask();
+    }),
+
+    vscode.commands.registerCommand('todo-sync.viewProjects', async () => {
+      const projects = configService.getTrackedProjects();
+      if (projects.length === 0) {
+        vscode.window.showInformationMessage('No projects linked yet. Use "ToDoSync: Link Project" to get started.');
+        return;
+      }
+      
+      const items = projects.map(p => ({
+        label: `📁 ${p.projectName}`,
+        detail: `Database: ${p.notionDatabaseId}`,
+        description: p.path,
+        project: p
+      }));
+      
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `${projects.length} tracked project${projects.length > 1 ? 's' : ''}`,
+        title: 'ToDoSync: Tracked Projects'
+      });
+      
+      if (selected) {
+        const action = await vscode.window.showQuickPick(
+          ['Open in Notion', 'Unlink Project', 'Cancel'],
+          { placeHolder: `Manage ${selected.project.projectName}` }
+        );
+        
+        if (action === 'Open in Notion') {
+          vscode.env.openExternal(vscode.Uri.parse(`https://notion.so/${selected.project.notionDatabaseId}`));
+        } else if (action === 'Unlink Project') {
+          await configService.removeProjectByPath(selected.project.path);
+          vscode.window.showInformationMessage(`Unlinked ${selected.project.projectName}`);
+        }
+      }
+    }),
+
+    vscode.commands.registerCommand('todo-sync.unlinkProject', async () => {
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      if (!folder) {
+        vscode.window.showErrorMessage('No workspace folder found.');
+        return;
+      }
+      
+      const tracked = configService.getTrackedProjects().find(p => p.path === folder.uri.fsPath);
+      if (!tracked) {
+        vscode.window.showInformationMessage('This workspace is not linked to any Notion database.');
+        return;
+      }
+      
+      const confirm = await vscode.window.showWarningMessage(
+        `Unlink "${tracked.projectName}" from this workspace?`,
+        'Unlink',
+        'Cancel'
+      );
+      
+      if (confirm === 'Unlink') {
+        await configService.removeProjectByPath(folder.uri.fsPath);
+        vscode.window.showInformationMessage(`Unlinked ${tracked.projectName}`);
+        treeProvider?.setItems([]);
+      }
     })
   );
 

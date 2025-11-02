@@ -3,10 +3,10 @@
   "displayName": "ToDoSync",
   "description": "Sync VS Code workspace tasks with Notion projects (Status only)",
   "version": "1.0.1",
-  "publisher": "YOUR_PUBLISHER_ID",
+  "publisher": "DaddooDev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/todosync.git"
+    "url": "https://github.com/shawnmcpeek/todosync"
   },
   "icon": "todosync.png",
   "engines": {
@@ -44,6 +44,14 @@
       {
         "command": "todo-sync.addTask",
         "title": "Add Task"
+      },
+      {
+        "command": "todo-sync.viewProjects",
+        "title": "ToDoSync: View Tracked Projects"
+      },
+      {
+        "command": "todo-sync.unlinkProject",
+        "title": "ToDoSync: Unlink Current Project"
       }
     ],
     "menus": {

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 // Stripe Webhook Handler for ToDoSync
-require("jsr:@supabase/functions-js/edge-runtime.d.ts");
+/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 const supabase_js_2_1 = require("jsr:@supabase/supabase-js@2");
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -12,6 +12,10 @@ Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
+    // Only accept POST requests
+    if (req.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     try {
         // Get Supabase client
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -20,11 +24,9 @@ Deno.serve(async (req) => {
         // Get Stripe webhook secret from env
         const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
         const stripeSignature = req.headers.get('stripe-signature');
-        // Verify webhook signature (in production)
-        if (stripeWebhookSecret && stripeSignature) {
-            // TODO: Verify signature using stripe library
-            // For now, we'll process without verification in development
-        }
+        // TODO: Implement proper Stripe signature verification
+        // For now, we're accepting all requests (signature verification commented out)
+        // In production, use @stripe/stripe-js or crypto to verify the signature
         // Parse event
         const event = await req.json();
         console.log(`Received Stripe event: ${event.type}`);

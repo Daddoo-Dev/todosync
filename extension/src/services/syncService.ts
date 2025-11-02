@@ -98,6 +98,7 @@ export class SyncService implements vscode.Disposable {
     // Freemium check: Free tier limited to 1 project (database + project combination)
     if (this.license) {
       const license = await this.license.checkLicense();
+      
       if (license?.tier === 'free') {
         const currentProjects = this.config.getTrackedProjects();
         
@@ -109,6 +110,7 @@ export class SyncService implements vscode.Disposable {
         
         // Check if this is a new project configuration
         const newConfigKey = `${selectedDbId}::${projectName}`;
+        
         if (!uniqueProjectConfigs.has(newConfigKey) && uniqueProjectConfigs.size >= 1) {
           const choice = await vscode.window.showWarningMessage(
             'ToDoSync Free: You can only sync 1 project. Upgrade to Pro for unlimited projects.',

@@ -9,6 +9,21 @@
     "url": "https://github.com/shawnmcpeek/todosync"
   },
   "icon": "todosync.png",
+  "galleryBanner": {
+    "color": "#1E3A8A",
+    "theme": "dark"
+  },
+  "keywords": [
+    "notion",
+    "todo",
+    "tasks",
+    "productivity",
+    "sync",
+    "task management",
+    "project management",
+    "notion integration",
+    "notion sync"
+  ],
   "engines": {
     "vscode": "^1.84.0"
   },

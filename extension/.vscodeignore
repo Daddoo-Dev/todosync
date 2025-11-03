@@ -1,0 +1,17 @@
+.vscode/**
+.vscode-test/**
+src/**
+.gitignore
+tsconfig.json
+**/*.map
+**/*.ts
+node_modules/**/@types/**
+node_modules/**/README.md
+node_modules/**/LICENSE
+node_modules/**/CHANGELOG.md
+node_modules/**/*.md
+node_modules/**/.npmignore
+node_modules/**/package-lock.json
+supabase/**
+*.vsix
+

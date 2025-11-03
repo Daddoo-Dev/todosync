@@ -11,7 +11,8 @@ export const log = {
   debug(message: string) {
     const enabled = vscode.workspace.getConfiguration().get<boolean>('todoSync.enableDebug', false);
     if (!enabled) return;
-    getChannel().appendLine(message);
+    const timestamp = new Date().toISOString().substring(11, 23); // HH:MM:SS.mmm
+    getChannel().appendLine(`[${timestamp}] ${message}`);
   }
 };
 

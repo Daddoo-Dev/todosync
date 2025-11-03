@@ -50,6 +50,10 @@ export async function activate(context: vscode.ExtensionContext) {
       await syncService?.addTask();
     }),
 
+    vscode.commands.registerCommand('todo-sync.importTasks', async () => {
+      await syncService?.importTasks();
+    }),
+
     vscode.commands.registerCommand('todo-sync.viewProjects', async () => {
       const projects = configService.getTrackedProjects();
       if (projects.length === 0) {

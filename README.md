@@ -35,6 +35,11 @@ To sync:
 - Type: `ToDoSync: Sync Now` (refreshes from Notion)
 - Or: `ToDoSync: Sync All Projects`
 
+To import tasks in bulk:
+- Press `Ctrl+Shift+P`
+- Type: `ToDoSync: Import Tasks from File`
+- Select a markdown file with checkboxes (see `TASK_IMPORT_TEMPLATE.md` for format)
+
 ## Notion Database Setup
 
 ### Basic Mode

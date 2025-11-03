@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { ConfigService, TrackedProject } from './configService';
 import { NotionClientWrapper, NotionTask } from '../notion/notionClient';
 import { ProjectTreeProvider, TaskItem } from '../tree/projectTreeProvider';
@@ -268,6 +269,194 @@ export class SyncService implements vscode.Disposable {
       vscode.window.showErrorMessage(`ToDoSync: Failed to add task: ${error.message || error}`);
       log.debug(`Failed to add task: ${error}`);
     }
+  }
+
+  async importTasks(): Promise<void> {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) {
+      vscode.window.showErrorMessage('ToDoSync: No workspace folder found.');
+      return;
+    }
+    
+    const tracked = this.config.getTrackedProjects().find(p => p.path === folder.uri.fsPath);
+    if (!tracked) {
+      vscode.window.showWarningMessage('ToDoSync: Link this workspace to a Notion database first.', 'Link Project')
+        .then(sel => sel && vscode.commands.executeCommand('todo-sync.linkProject'));
+      return;
+    }
+    
+    const apiKey = await this.config.getApiKey();
+    if (!apiKey) {
+      vscode.window.showWarningMessage('ToDoSync: Set Notion API key first.', 'Set API Key')
+        .then(sel => sel && vscode.commands.executeCommand('todo-sync.setApiKey'));
+      return;
+    }
+    
+    // Prompt for file
+    const fileUri = await vscode.window.showOpenDialog({
+      canSelectMany: false,
+      filters: { 'Markdown': ['md'], 'Text': ['txt'], 'All Files': ['*'] },
+      openLabel: 'Import Tasks',
+      title: 'Select task file to import'
+    });
+    
+    if (!fileUri || fileUri.length === 0) return;
+    
+    const filePath = fileUri[0].fsPath;
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    
+    log.debug(`[Import] File path: ${filePath}`);
+    log.debug(`[Import] File size: ${fileContent.length} chars`);
+    log.debug(`[Import] First 200 chars: ${fileContent.substring(0, 200)}`);
+    
+    // Parse tasks from markdown
+    const tasks = this.parseTasksFromMarkdown(fileContent);
+    
+    log.debug(`[Import] Found ${tasks.length} tasks`);
+    
+    if (tasks.length === 0) {
+      vscode.window.showWarningMessage('ToDoSync: No tasks found in file. Use markdown checkboxes: - [ ] Task name');
+      return;
+    }
+    
+    // Show preview and confirm
+    const confirm = await vscode.window.showInformationMessage(
+      `ToDoSync: Found ${tasks.length} task(s) to import. Continue?`,
+      { modal: true },
+      'Import',
+      'Cancel'
+    );
+    
+    if (confirm !== 'Import') return;
+    
+    // Import tasks
+    const client = new NotionClientWrapper(apiKey);
+    
+    // Get database properties to validate metadata
+    const hasProjectProp = await client.hasProjectProperty(tracked.notionDatabaseId);
+    const projectName = hasProjectProp ? tracked.projectName : undefined;
+    
+    // Pre-fetch database info and project ID once (instead of for every task)
+    const dbInfo = await client.getDatabaseInfo(tracked.notionDatabaseId);
+    log.debug(`[Import] Database is multi-datasource: ${dbInfo.isMultiDatasource}`);
+    
+    let projectId: string | undefined = undefined;
+    if (projectName && dbInfo.isMultiDatasource) {
+      log.debug(`[Import] Looking up project: "${projectName}"`);
+      const projects = await client.getProjectOptionsWithIds(tracked.notionDatabaseId);
+      log.debug(`[Import] Found ${projects.length} projects: ${projects.map(p => `"${p.name}"`).join(', ')}`);
+      const project = projects.find(p => p.name === projectName);
+      projectId = project?.id;
+      if (!projectId) {
+        log.debug(`[Import] ⚠️ Project "${projectName}" not found! Available: ${projects.map(p => p.name).join(', ')}`);
+      } else {
+        log.debug(`[Import] ✓ Pre-fetched project ID: ${projectId} for "${projectName}"`);
+      }
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: 'Importing tasks...',
+      cancellable: false
+    }, async (progress) => {
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        progress.report({ 
+          increment: (100 / tasks.length),
+          message: `${i + 1}/${tasks.length}: ${task.title.substring(0, 30)}...`
+        });
+        
+        log.debug(`[Import] Creating task ${i + 1}: title="${task.title}", status="${task.status}", project="${projectName}" (ID: ${projectId})`);
+        
+        try {
+          await client.createTask(
+            tracked.notionDatabaseId,
+            task.title,
+            task.status,
+            projectName,
+            projectId, // Pass pre-fetched project ID to avoid expensive lookup
+            dbInfo    // Pass pre-fetched database info to avoid 23 API calls
+          );
+          successCount++;
+          log.debug(`[Import] ✓ Task ${i + 1} created successfully`);
+        } catch (error: any) {
+          log.debug(`[Import] ✗ Task ${i + 1} failed: ${error.message || error}`);
+          failCount++;
+        }
+      }
+    });
+    
+    // Show results
+    if (failCount === 0) {
+      vscode.window.showInformationMessage(`ToDoSync: Successfully imported ${successCount} task(s).`);
+    } else {
+      vscode.window.showWarningMessage(`ToDoSync: Imported ${successCount} task(s), ${failCount} failed. Check Output for details.`);
+    }
+    
+    await this.syncCurrentWorkspace();
+  }
+
+  private parseTasksFromMarkdown(content: string): Array<{ title: string; status: string; metadata: any }> {
+    // Split by any line ending (handles CRLF, LF, or CR)
+    const lines = content.split(/\r?\n|\r/);
+    const tasks: Array<{ title: string; status: string; metadata: any }> = [];
+    
+    // Regex for markdown checkboxes: - [ ] or - [x] or * [ ] or * [x]
+    const taskRegex = /^[\s]*[-*]\s*\[([ xX])\]\s*(.+)$/;
+    
+    for (const line of lines) {
+      const match = line.match(taskRegex);
+      if (!match) continue;
+      
+      const checked = match[1].toLowerCase() === 'x';
+      let taskText = match[2].trim();
+      
+      // Extract metadata tags
+      const metadata: any = {};
+      
+      // @status:Status Name (handles multi-word statuses like "Not started")
+      const statusMatch = taskText.match(/@status:(.+?)(?:\s+@|$)/);
+      if (statusMatch) {
+        metadata.status = statusMatch[1].trim();
+        taskText = taskText.replace(/@status:.+?(?=\s+@|$)/, '').trim();
+      }
+      
+      // @priority:Priority Name
+      const priorityMatch = taskText.match(/@priority:(.+?)(?:\s+@|$)/);
+      if (priorityMatch) {
+        metadata.priority = priorityMatch[1].trim();
+        taskText = taskText.replace(/@priority:.+?(?=\s+@|$)/, '').trim();
+      }
+      
+      // @due:YYYY-MM-DD
+      const dueMatch = taskText.match(/@due:(\d{4}-\d{2}-\d{2})/);
+      if (dueMatch) {
+        metadata.due = dueMatch[1];
+        taskText = taskText.replace(dueMatch[0], '').trim();
+      }
+      
+      // Determine status
+      let status = 'Not started';
+      if (metadata.status) {
+        status = metadata.status;
+      } else if (checked) {
+        status = 'Done';
+      }
+      
+      tasks.push({
+        title: taskText,
+        status: status,
+        metadata: metadata
+      });
+      
+      log.debug(`[Parse] Task: "${taskText}", status: "${status}"`);
+    }
+    
+    log.debug(`[Parse] Total parsed: ${tasks.length} tasks`);
+    return tasks;
   }
 
   private toTaskItems(tasks: NotionTask[], project: TrackedProject): TaskItem[] {

@@ -77,6 +77,10 @@ export class NotionClientWrapper {
       let cursor: string | undefined = undefined;
       let projectRelationId: string | undefined = undefined;
       
+      // Get the datasource IDs for THIS database only
+      const datasourceIds = new Set((db as any).data_sources?.map((ds: any) => ds.id) || []);
+      console.log(`[DEBUG] This database has ${datasourceIds.size} datasource(s)`);
+      
       // If filtering by project name, first find the project ID
       if (projectFilter) {
         const projectOptions = await this.getProjectOptionsWithIds(databaseId);
@@ -93,8 +97,9 @@ export class NotionClientWrapper {
         } as any);
         
         for (const r of searchResults.results as any[]) {
-          // Only include pages from this database
-          if (r.parent?.type === 'data_source_id' || r.parent?.type === 'database_id') {
+          // Only include pages from THIS database's datasources
+          const parentDatasourceId = r.parent?.data_source_id;
+          if (r.parent?.type === 'data_source_id' && datasourceIds.has(parentDatasourceId)) {
             // Check project filter if specified
             if (projectRelationId) {
               const projProp = r.properties?.['Project (Relation)'] || r.properties?.Project;
@@ -161,7 +166,7 @@ export class NotionClientWrapper {
     return tasks;
   }
   
-  private async getProjectOptionsWithIds(databaseId: string): Promise<{ id: string; name: string }[]> {
+  async getProjectOptionsWithIds(databaseId: string): Promise<{ id: string; name: string }[]> {
     try {
       const db = await this.client.databases.retrieve({ database_id: databaseId });
       const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
@@ -320,6 +325,33 @@ export class NotionClientWrapper {
     }
   }
 
+  async getDatabaseInfo(databaseId: string): Promise<{ 
+    isMultiDatasource: boolean; 
+    datasourceId?: string;
+    titlePropertyName: string;
+  }> {
+    const db = await this.client.databases.retrieve({ database_id: databaseId });
+    const isMultiDatasource = (db as any).data_sources && (db as any).data_sources.length > 0;
+    
+    let titlePropertyName = 'Task name'; // Default for multi-datasource
+    if (!isMultiDatasource) {
+      const titleProp = Object.entries((db as any).properties || {}).find(([_, p]: [string, any]) => p.type === 'title');
+      if (titleProp) {
+        titlePropertyName = titleProp[0];
+      }
+    }
+    
+    const datasourceId = isMultiDatasource && (db as any).data_sources?.length > 0 
+      ? (db as any).data_sources[0].id 
+      : undefined;
+    
+    return { 
+      isMultiDatasource,
+      datasourceId,
+      titlePropertyName
+    };
+  }
+
   async hasProjectProperty(databaseId: string): Promise<boolean> {
     try {
       let db: any;
@@ -393,45 +425,81 @@ export class NotionClientWrapper {
     });
   }
 
-  async createTask(databaseId: string, title: string, defaultStatus?: string, projectName?: string): Promise<string> {
-    const db = await this.client.databases.retrieve({ database_id: databaseId });
-    const properties: any = {};
-    
-    // Find title property
-    const titleProp = Object.entries((db as any).properties || {}).find(([_, p]: [string, any]) => p.type === 'title');
-    if (titleProp) {
-      properties[titleProp[0]] = {
-        title: [{ text: { content: title } }]
-      };
+  async createTask(
+    databaseId: string, 
+    title: string, 
+    defaultStatus?: string, 
+    projectName?: string, 
+    projectId?: string,
+    cachedDbInfo?: { isMultiDatasource: boolean; datasourceId?: string; titlePropertyName: string }
+  ): Promise<string> {
+    // Use cached database info if provided, otherwise fetch it
+    let dbInfo = cachedDbInfo;
+    if (!dbInfo) {
+      dbInfo = await this.getDatabaseInfo(databaseId);
     }
     
+    const { isMultiDatasource, datasourceId, titlePropertyName } = dbInfo;
+    const properties: any = {};
+    
+    // Set title
+    properties[titlePropertyName] = {
+      title: [{ text: { content: title } }]
+    };
+    
     // Set status if provided
-    if (defaultStatus && (db as any).properties?.Status) {
+    if (defaultStatus) {
+      // For multi-datasource, Status property always exists
+      // For regular databases, we assume it exists if a default status is provided
       properties.Status = { status: { name: defaultStatus } };
     }
     
     // Set project if provided
-    if (projectName) {
-      const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
-      
-      if (projectProp?.type === 'select') {
-        // Old select-based project
-        properties[projectProp.name || 'Project'] = { select: { name: projectName } };
-      } else if (projectProp?.type === 'relation') {
-        // New relation-based project - find the project ID
-        const projects = await this.getProjectOptionsWithIds(databaseId);
-        const project = projects.find(p => p.name === projectName);
+    if (projectName || projectId) {
+      if (isMultiDatasource) {
+        // Multi-datasource always uses relation-based projects
+        let projId = projectId;
         
-        if (project) {
-          properties[projectProp.name || 'Project (Relation)'] = {
-            relation: [{ id: project.id }]
+        // Only look up project ID if not provided (expensive operation)
+        if (!projId && projectName) {
+          const projects = await this.getProjectOptionsWithIds(databaseId);
+          const project = projects.find(p => p.name === projectName);
+          projId = project?.id;
+        }
+        
+        if (projId) {
+          properties['Project (Relation)'] = {
+            relation: [{ id: projId }]
           };
+        }
+      } else {
+        // Regular database - need to fetch database to check property type
+        const db = await this.client.databases.retrieve({ database_id: databaseId });
+        const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
+        
+        if (projectProp?.type === 'select') {
+          properties[projectProp.name || 'Project'] = { select: { name: projectName } };
+        } else if (projectProp?.type === 'relation') {
+          const projects = await this.getProjectOptionsWithIds(databaseId);
+          const project = projects.find(p => p.name === projectName);
+          
+          if (project) {
+            properties[projectProp.name || 'Project (Relation)'] = {
+              relation: [{ id: project.id }]
+            };
+          }
         }
       }
     }
     
+    // For multi-datasource databases, use the datasource as parent
+    let parent: any = { database_id: databaseId };
+    if (isMultiDatasource && datasourceId) {
+      parent = { type: 'data_source_id', data_source_id: datasourceId };
+    }
+    
     const page = await this.client.pages.create({
-      parent: { database_id: databaseId },
+      parent: parent,
       properties
     });
     

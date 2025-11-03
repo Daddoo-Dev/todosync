@@ -52,6 +52,10 @@
       {
         "command": "todo-sync.unlinkProject",
         "title": "ToDoSync: Unlink Current Project"
+      },
+      {
+        "command": "todo-sync.importTasks",
+        "title": "ToDoSync: Import Tasks from File"
       }
     ],
     "menus": {

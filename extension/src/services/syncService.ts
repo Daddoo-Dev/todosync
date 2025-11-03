@@ -123,6 +123,12 @@ export class SyncService implements vscode.Disposable {
             const machineId = vscode.env.machineId;
             const paymentUrl = `https://buy.stripe.com/14A3cu3Xu5jy3DG3C1gEg01?client_reference_id=${machineId}`;
             vscode.env.openExternal(vscode.Uri.parse(paymentUrl));
+            
+            // Prompt user to refresh license after purchase
+            vscode.window.showInformationMessage(
+              'After completing your purchase, run "ToDoSync: Refresh License Status" to activate Pro features.',
+              'Got it'
+            );
           }
           return;
         }
@@ -145,7 +151,7 @@ export class SyncService implements vscode.Disposable {
     await this.syncCurrentWorkspace();
   }
 
-  async syncCurrentWorkspace(): Promise<void> {
+  async syncCurrentWorkspace(showNotification: boolean = false): Promise<void> {
     const folder = vscode.workspace.workspaceFolders?.[0];
     if (!folder) return;
     const tracked = this.config.getTrackedProjects().find(p => p.path === folder.uri.fsPath);
@@ -170,10 +176,15 @@ export class SyncService implements vscode.Disposable {
     const items = this.toTaskItems(tasks, tracked);
     this.tree.setItems(items);
     log.debug(`Synced ${items.length} task(s) for workspace '${folder.name}' ${projectFilter ? `(project: ${projectFilter})` : ''}`);
+    
+    // Show notification only for manual sync (not auto-refresh)
+    if (showNotification) {
+      vscode.window.showInformationMessage(`ToDoSync: Synced ${items.length} task(s)${projectFilter ? ` for ${projectFilter}` : ''}`);
+    }
   }
 
-  async syncAllWorkspaces(): Promise<void> {
-    await this.syncCurrentWorkspace();
+  async syncAllWorkspaces(showNotification: boolean = false): Promise<void> {
+    await this.syncCurrentWorkspace(showNotification);
   }
 
   async toggleStatus(item: TaskItem): Promise<void> {
@@ -217,6 +228,7 @@ export class SyncService implements vscode.Disposable {
     
     await client.updateStatus(item.id, pick.value);
     log.debug(`Updated status -> ${pick.value} for task ${item.id}`);
+    vscode.window.showInformationMessage(`ToDoSync: Updated "${item.title}" to ${pick.value}`);
     await this.syncCurrentWorkspace();
   }
 

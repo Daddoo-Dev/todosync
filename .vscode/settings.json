@@ -31,7 +31,7 @@
             "statusOptions": [
                 {
                     "name": "Not started",
-                    "color": "default"
+                    "color": "gray"
                 },
                 {
                     "name": "In progress",

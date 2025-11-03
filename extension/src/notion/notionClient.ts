@@ -41,11 +41,11 @@ export class NotionClientWrapper {
 
   async listDatabases(): Promise<{ id: string; title: string }[]> {
     const databases: { id: string; title: string }[] = [];
+    const seen = new Set<string>();
     let cursor: string | undefined = undefined;
-    let pageCount = 0;
     
+    // Search for datasources (this includes both standalone databases and multi-datasource DBs)
     do {
-      pageCount++;
       const res = await this.client.search({
         filter: { property: 'object', value: 'data_source' },
         sort: { direction: 'ascending', timestamp: 'last_edited_time' },
@@ -53,10 +53,32 @@ export class NotionClientWrapper {
         page_size: 100
       } as any);
       
-      databases.push(...res.results.map((r: any) => ({
-        id: r.id,
-        title: r.title?.[0]?.plain_text || 'Untitled'
-      })));
+      for (const r of res.results as any[]) {
+        // For multi-datasource databases, the parent is a database
+        // We want to show the parent database, not the individual datasources
+        if (r.parent?.type === 'database_id') {
+          const dbId = r.parent.database_id;
+          if (!seen.has(dbId)) {
+            seen.add(dbId);
+            // Fetch the actual database to get its title
+            try {
+              const db = await this.client.databases.retrieve({ database_id: dbId });
+              databases.push({
+                id: dbId,
+                title: (db as any).title?.[0]?.plain_text || 'Untitled'
+              });
+            } catch (e) {
+              // Skip if can't retrieve
+            }
+          }
+        } else {
+          // Standalone database (datasource is the database)
+          databases.push({
+            id: r.id,
+            title: r.title?.[0]?.plain_text || 'Untitled'
+          });
+        }
+      }
       
       cursor = (res as any).next_cursor || undefined;
       if (!(res as any).has_more) cursor = undefined;
@@ -359,6 +381,7 @@ export class NotionClientWrapper {
         db = await this.client.databases.retrieve({ database_id: databaseId });
       } catch (dbError: any) {
         // If we can't retrieve the database, assume no project property
+        console.log(`[DEBUG hasProjectProperty] Failed to retrieve database: ${dbError.code}`);
         if (dbError.code === 'object_not_found') {
           return false;
         }
@@ -367,12 +390,14 @@ export class NotionClientWrapper {
       
       // Check if database has properties directly (regular database)
       const projectProp = (db as any).properties?.['Project (Relation)'] || (db as any).properties?.Project;
+      console.log(`[DEBUG hasProjectProperty] Direct property check - found: ${!!projectProp}, type: ${projectProp?.type}`);
       if (projectProp && (projectProp.type === 'select' || projectProp.type === 'relation')) {
         return true;
       }
       
       // For multi-datasource databases, check sample pages from the data sources
       const isMultiDatasource = (db as any).data_sources && (db as any).data_sources.length > 0;
+      console.log(`[DEBUG hasProjectProperty] Is multi-datasource: ${isMultiDatasource}`);
       if (isMultiDatasource) {
         const dataSources = (db as any).data_sources || [];
         
@@ -387,7 +412,9 @@ export class NotionClientWrapper {
           for (const result of searchResults.results as any[]) {
             if (result.parent?.type === 'data_source_id') {
               const pageProp = result.properties?.['Project (Relation)'] || result.properties?.Project;
+              console.log(`[DEBUG hasProjectProperty] Found page with data_source_id, Project prop type: ${pageProp?.type}`);
               if (pageProp && (pageProp.type === 'select' || pageProp.type === 'relation')) {
+                console.log(`[DEBUG hasProjectProperty] ✓ Found Project property!`);
                 return true;
               }
             }
@@ -395,8 +422,10 @@ export class NotionClientWrapper {
         }
       }
       
+      console.log(`[DEBUG hasProjectProperty] ✗ No project property found`);
       return false;
     } catch (error) {
+      console.log(`[DEBUG hasProjectProperty] Error: ${error}`);
       return false;
     }
   }

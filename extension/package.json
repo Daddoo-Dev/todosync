@@ -56,6 +56,10 @@
       {
         "command": "todo-sync.importTasks",
         "title": "ToDoSync: Import Tasks from File"
+      },
+      {
+        "command": "todo-sync.refreshLicense",
+        "title": "ToDoSync: Refresh License Status"
       }
     ],
     "menus": {

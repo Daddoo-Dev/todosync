@@ -115,14 +115,15 @@ async function handleCheckoutSessionCompleted(event: StripeEvent, supabase: any)
   const customerId = session.customer;
   const subscriptionId = session.subscription;
   
-  // Extract metadata (we'll need to pass vs_code_machine_id in metadata)
-  const metadata = session.metadata || {};
-  const machineId = metadata.vs_code_machine_id;
+  // Extract machine ID from client_reference_id or metadata
+  const machineId = session.client_reference_id || session.metadata?.vs_code_machine_id;
 
   if (!machineId) {
-    console.error('No machine_id in metadata');
+    console.error('No machine_id in client_reference_id or metadata');
     return false;
   }
+  
+  console.log(`Processing checkout for machine ID: ${machineId}`);
 
   // Find or create license
   const { data: existing } = await supabase

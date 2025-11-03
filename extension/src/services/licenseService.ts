@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
+import { log } from './log';
 
 const SUPABASE_URL_KEY = 'todoSync.supabaseUrl';
 const SUPABASE_ANON_KEY_KEY = 'todoSync.supabaseAnonKey';
@@ -37,19 +38,28 @@ export class LicenseService {
     // Check .env file first
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (workspaceFolder) {
-      const envPath = path.join(workspaceFolder.uri.fsPath, '..', '..', '.env');
+      const envPath = path.join(workspaceFolder.uri.fsPath, '.env');
+      log.debug(`[LICENSE] Looking for .env at: ${envPath}`);
+      log.debug(`[LICENSE] .env exists: ${fs.existsSync(envPath)}`);
       try {
         if (fs.existsSync(envPath)) {
           const envContent = fs.readFileSync(envPath, 'utf8');
-          dotenv.config({ path: envPath });
-          const url = process.env.SUPABASE_URL;
-          if (url) return url;
+          const envLines = envContent.split('\n');
+          for (const line of envLines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('SUPABASE_URL=')) {
+              const url = trimmed.substring('SUPABASE_URL='.length).trim().replace(/^["']|["']$/g, '');
+              log.debug(`[LICENSE] Found SUPABASE_URL: ${url}`);
+              if (url) return url;
+            }
+          }
         }
       } catch (error) {
-        // Fall through
+        log.debug(`[LICENSE] Error reading .env: ${error}`);
       }
     }
     
+    log.debug(`[LICENSE] No URL in .env, checking settings`);
     // Check VS Code settings
     return vscode.workspace.getConfiguration().get<string>(SUPABASE_URL_KEY);
   }
@@ -58,32 +68,43 @@ export class LicenseService {
     // Check .env file first
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (workspaceFolder) {
-      const envPath = path.join(workspaceFolder.uri.fsPath, '..', '..', '.env');
+      const envPath = path.join(workspaceFolder.uri.fsPath, '.env');
       try {
         if (fs.existsSync(envPath)) {
-          dotenv.config({ path: envPath });
-          const key = process.env.SUPABASE_ANON_KEY;
-          if (key) return key;
+          const envContent = fs.readFileSync(envPath, 'utf8');
+          const envLines = envContent.split('\n');
+          for (const line of envLines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('SUPABASE_ANON_KEY=')) {
+              const key = trimmed.substring('SUPABASE_ANON_KEY='.length).trim().replace(/^["']|["']$/g, '');
+              log.debug(`[LICENSE] Found SUPABASE_ANON_KEY: ${key ? key.substring(0, 20) + '...' : 'empty'}`);
+              if (key) return key;
+            }
+          }
         }
       } catch (error) {
-        // Fall through
+        log.debug(`[LICENSE] Error reading .env for anon key: ${error}`);
       }
     }
     
+    log.debug(`[LICENSE] No anon key in .env, checking secrets`);
     // Check VS Code secrets storage
     return await this.context.secrets.get(SUPABASE_ANON_KEY_KEY);
   }
 
   async checkLicense(): Promise<LicenseInfo | null> {
     if (!this.client) {
+      log.debug(`[LICENSE] Client not initialized, calling initializeClient()`);
       await this.initializeClient();
       if (!this.client) {
         // No backend configured - assume free tier
+        log.debug(`[LICENSE] No client after init - returning FREE tier`);
         return { tier: 'free', isActive: true, expiresAt: null };
       }
     }
 
     const machineId = vscode.env.machineId;
+    log.debug(`[LICENSE] Checking license for machine: ${machineId}`);
     
     try {
       const { data, error } = await this.client
@@ -92,8 +113,11 @@ export class LicenseService {
         .eq('vs_code_machine_id', machineId)
         .single();
 
+      log.debug(`[LICENSE] Query result - error: ${error ? error.message : 'none'}, data: ${data ? JSON.stringify(data) : 'none'}`);
+
       if (error || !data) {
         // No license found - create free tier entry
+        log.debug(`[LICENSE] No license found, creating default FREE license`);
         await this.createDefaultLicense(machineId);
         return { tier: 'free', isActive: true, expiresAt: null };
       }
@@ -106,13 +130,15 @@ export class LicenseService {
         return { tier: 'free', isActive: false, expiresAt };
       }
 
-      return {
+      const result = {
         tier: data.license_tier as LicenseTier,
         isActive: data.is_active,
         expiresAt
       };
+      log.debug(`[LICENSE] Returning: ${result.tier.toUpperCase()} - ${result.isActive ? 'Active' : 'Inactive'}`);
+      return result;
     } catch (error) {
-      console.error('License check failed:', error);
+      log.debug(`[LICENSE] Check failed with exception: ${error}`);
       // Fallback to free tier on error
       return { tier: 'free', isActive: true, expiresAt: null };
     }

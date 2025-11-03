@@ -35,11 +35,11 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand('todo-sync.syncNow', async () => {
-      await syncService?.syncCurrentWorkspace();
+      await syncService?.syncCurrentWorkspace(true); // Show notification for manual sync
     }),
 
     vscode.commands.registerCommand('todo-sync.syncAll', async () => {
-      await syncService?.syncAllWorkspaces();
+      await syncService?.syncAllWorkspaces(true); // Show notification for manual sync
     }),
 
     vscode.commands.registerCommand('todo-sync.toggleStatus', async (item) => {
@@ -52,6 +52,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('todo-sync.importTasks', async () => {
       await syncService?.importTasks();
+    }),
+
+    vscode.commands.registerCommand('todo-sync.refreshLicense', async () => {
+      if (licenseService) {
+        const license = await licenseService.checkLicense();
+        if (license) {
+          vscode.window.showInformationMessage(
+            `ToDoSync: License ${license.tier.toUpperCase()} - ${license.isActive ? 'Active' : 'Inactive'}`
+          );
+        } else {
+          vscode.window.showWarningMessage('ToDoSync: Could not retrieve license status');
+        }
+      }
     }),
 
     vscode.commands.registerCommand('todo-sync.viewProjects', async () => {

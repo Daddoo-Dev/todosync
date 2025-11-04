@@ -103,21 +103,26 @@ Then: `ToDoSync: Import Tasks from File` → Select your file
 
 ## 🗄️ Notion Database Setup
 
+**Quick Start:** Follow our [step-by-step template guide](NOTION_DATABASE_TEMPLATE.md) to create a ToDoSync-ready database.
+
 ### Basic Mode
 Each database needs:
 - **Title property** - For task name
-- **Status property** - For task status
+- **Status property** - For task status (with "Not started", "In progress", "Done" options)
 
 ### Centralized Mode (Recommended)
 Use ONE database for all projects:
 - **Title property** - For task name  
 - **Status property** - For task status
-- **Project property (Relation)** - Links to project pages
+- **Project property (Relation)** - Links to a Projects database
 
 **Benefits:**
 - Manage all projects in one place
 - Easy cross-project visibility
 - Consistent task structure
+- Filter tasks by project automatically
+
+[See detailed setup guide →](NOTION_DATABASE_TEMPLATE.md)
 
 ## 💎 Pricing
 
@@ -188,6 +193,12 @@ Found a bug? Have a feature request?
 
 - [Report an issue](https://github.com/shawnmcpeek/todosync/issues)
 - [Submit a pull request](https://github.com/shawnmcpeek/todosync/pulls)
+
+## 📚 Documentation
+
+- **[Complete User Guide](USER_GUIDE.md)** - Comprehensive documentation with FAQs and best practices
+- **[Notion Database Template](NOTION_DATABASE_TEMPLATE.md)** - Step-by-step setup guide
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
 
 ## 📄 License
 

@@ -2,6 +2,33 @@
 
 All notable changes to the ToDoSync extension will be documented in this file.
 
+## [1.0.2] - 2025-11-04
+
+### Added
+- **Keyboard shortcuts** - Ctrl+Shift+T for new task, F5 for sync
+- **Delete task** - Right-click task to delete (archives in Notion)
+- **Task count display** - Shows "X/Y tasks" (completed/total) in tree view header
+- **Refresh button** - Manual sync button in tree view toolbar
+- **Loading spinners** - Progress indicators for all async operations (sync, link, import)
+- **Request timeouts** - 30-second timeout on all Notion API calls
+- **Retry actions** - "Retry" button on all error notifications
+- **Notion Database Template** - Complete setup guide for new users
+- **Comprehensive User Guide** - Full documentation with FAQs, workflows, and best practices
+- **Button separator** - Visual separation between toolbar buttons
+
+### Improved
+- **Error messages** - User-friendly messages for all error types:
+  - "Invalid Notion API key" for auth errors
+  - "Database not shared with integration" for permission errors  
+  - "Request timed out. Check your internet connection" for timeouts
+  - "Network error" for connectivity issues
+  - "Notion API rate limit reached" for 429 errors
+- **Task count** - Now shows completed vs total (19/24) instead of just total
+
+### Fixed
+- Database listing returning datasource IDs for multi-datasource databases
+- License check failing with RLS policies
+
 ## [1.0.1] - 2025-11-03
 
 ### Added

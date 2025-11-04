@@ -5,31 +5,31 @@ Sync your VS Code workspace tasks directly with Notion databases. No local markd
 ## 📸 Screenshots
 
 ### Task Management in Your Sidebar
-![Tree View](screenshots/treeview.png)
+![Tree View](https://raw.githubusercontent.com/shawnmcpeek/todosync/main/extension/screenshots/treeview.png)
 *Manage all your tasks directly in the VS Code sidebar with color-coded status indicators*
 
 ### Real-Time Notion Sync
-![Side by Side](screenshots/notionsidebyside.png)
+![Side by Side](https://raw.githubusercontent.com/shawnmcpeek/todosync/main/extension/screenshots/notionsidebyside.png)
 *Changes sync instantly between VS Code and Notion - your tasks, everywhere*
 
 ### Centralized Project Management
-![Project Selection](screenshots/projectselection.png)
+![Project Selection](https://raw.githubusercontent.com/shawnmcpeek/todosync/main/extension/screenshots/projectselection.png)
 *Select from existing projects or create new ones in your centralized Notion database*
 
 ### Bulk Import Tasks
-![Import Tasks](screenshots/importexample.png)
+![Import Tasks](https://raw.githubusercontent.com/shawnmcpeek/todosync/main/extension/screenshots/importexample.png)
 *Import dozens of tasks in seconds from markdown files*
 
 ### Quick Command Access
-![Command Palette](screenshots/commandpalette.png)
+![Command Palette](https://raw.githubusercontent.com/shawnmcpeek/todosync/main/extension/screenshots/commandpalette.png)
 *Access all ToDoSync features from the Command Palette*
 
 ### Project Management
-![Project Menu](screenshots/projectmenu2.png)
+![Project Menu](https://raw.githubusercontent.com/shawnmcpeek/todosync/main/extension/screenshots/projectmenu2.png)
 *View and manage all your tracked projects*
 
 ### Simple Configuration
-![Settings](screenshots/todosyncsettings.png)
+![Settings](https://raw.githubusercontent.com/shawnmcpeek/todosync/main/extension/screenshots/todosyncsettings.png)
 *Easy setup with minimal configuration required*
 
 ## ✨ Features

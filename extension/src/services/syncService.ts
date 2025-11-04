@@ -42,7 +42,15 @@ export class SyncService implements vscode.Disposable {
     }
 
     const client = new NotionClientWrapper(apiKey);
-    const dbs = await client.listDatabases();
+    
+    let dbs: { id: string; title: string }[] = [];
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: 'ToDoSync: Loading databases...',
+      cancellable: false
+    }, async () => {
+      dbs = await client.listDatabases();
+    });
     
     if (dbs.length === 0) {
       vscode.window.showWarningMessage('ToDoSync: No Notion databases accessible with this API key.');
@@ -67,7 +75,15 @@ export class SyncService implements vscode.Disposable {
     let projectName = folder.name;
     
     if (hasProjectProp) {
-      const projectOptions = await client.getProjectOptions(selectedDbId);
+      let projectOptions: string[] = [];
+      await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: 'ToDoSync: Loading projects...',
+        cancellable: false
+      }, async () => {
+        projectOptions = await client.getProjectOptions(selectedDbId);
+      });
+      
       const items: vscode.QuickPickItem[] = [
         ...projectOptions.map(p => ({ label: p, description: 'Existing project' })),
         { label: '$(add) Create new project', description: 'Enter a custom project name' }
@@ -161,30 +177,94 @@ export class SyncService implements vscode.Disposable {
     }
     const apiKey = await this.config.getApiKey();
     if (!apiKey) return;
-    const client = new NotionClientWrapper(apiKey);
-    this.tree.setNotionClient(client);
-    if (!tracked.statusOptions) {
-      tracked.statusOptions = await client.getStatusOptions(tracked.notionDatabaseId);
-      await this.config.addProject(tracked);
-    }
     
-    // Check if database has Project property - if so, filter by projectName
-    const hasProjectProp = await client.hasProjectProperty(tracked.notionDatabaseId);
-    const projectFilter = hasProjectProp ? tracked.projectName : undefined;
-    
-    const tasks = await client.getTasks(tracked.notionDatabaseId, 200, projectFilter);
-    const items = this.toTaskItems(tasks, tracked);
-    this.tree.setItems(items);
-    log.debug(`Synced ${items.length} task(s) for workspace '${folder.name}' ${projectFilter ? `(project: ${projectFilter})` : ''}`);
-    
-    // Show notification only for manual sync (not auto-refresh)
-    if (showNotification) {
-      vscode.window.showInformationMessage(`ToDoSync: Synced ${items.length} task(s)${projectFilter ? ` for ${projectFilter}` : ''}`);
+    try {
+      await vscode.window.withProgress({
+        location: showNotification ? vscode.ProgressLocation.Notification : vscode.ProgressLocation.Window,
+        title: 'ToDoSync: Syncing...',
+        cancellable: false
+      }, async (progress) => {
+        progress.report({ message: 'Connecting to Notion...' });
+        
+        const client = new NotionClientWrapper(apiKey);
+        this.tree.setNotionClient(client);
+        if (!tracked.statusOptions) {
+          tracked.statusOptions = await client.getStatusOptions(tracked.notionDatabaseId);
+          await this.config.addProject(tracked);
+        }
+        
+        progress.report({ message: 'Fetching tasks...' });
+        
+        // Check if database has Project property - if so, filter by projectName
+        const hasProjectProp = await client.hasProjectProperty(tracked.notionDatabaseId);
+        const projectFilter = hasProjectProp ? tracked.projectName : undefined;
+        
+        const tasks = await client.getTasks(tracked.notionDatabaseId, 200, projectFilter);
+        const items = this.toTaskItems(tasks, tracked);
+        this.tree.setItems(items);
+        log.debug(`Synced ${items.length} task(s) for workspace '${folder.name}' ${projectFilter ? `(project: ${projectFilter})` : ''}`);
+        
+        // Show notification only for manual sync (not auto-refresh)
+        if (showNotification) {
+          vscode.window.showInformationMessage(`ToDoSync: Synced ${items.length} task(s)${projectFilter ? ` for ${projectFilter}` : ''}`);
+        }
+      });
+    } catch (error: any) {
+      const errorMsg = error.message || error.toString();
+      log.debug(`Sync failed: ${errorMsg}`);
+      
+      const action = await vscode.window.showErrorMessage(
+        `ToDoSync: Sync failed - ${errorMsg}`,
+        'Retry',
+        'Dismiss'
+      );
+      
+      if (action === 'Retry') {
+        await this.syncCurrentWorkspace(showNotification);
+      }
     }
   }
 
   async syncAllWorkspaces(showNotification: boolean = false): Promise<void> {
     await this.syncCurrentWorkspace(showNotification);
+  }
+
+  async deleteTask(item: TaskItem): Promise<void> {
+    const apiKey = await this.config.getApiKey();
+    if (!apiKey) {
+      vscode.window.showWarningMessage('ToDoSync: No API key found. Set it first.');
+      return;
+    }
+    
+    const confirm = await vscode.window.showWarningMessage(
+      `Delete task "${item.title}"?`,
+      { modal: true },
+      'Delete',
+      'Cancel'
+    );
+    
+    if (confirm !== 'Delete') return;
+    
+    try {
+      const client = new NotionClientWrapper(apiKey);
+      await client.deleteTask(item.id);
+      vscode.window.showInformationMessage(`ToDoSync: Deleted "${item.title}"`);
+      log.debug(`Deleted task: ${item.title} (${item.id})`);
+      await this.syncCurrentWorkspace();
+    } catch (error: any) {
+      const errorMsg = error.message || error.toString();
+      log.debug(`Failed to delete task: ${errorMsg}`);
+      
+      const action = await vscode.window.showErrorMessage(
+        `ToDoSync: Failed to delete task - ${errorMsg}`,
+        'Retry',
+        'Dismiss'
+      );
+      
+      if (action === 'Retry') {
+        await this.deleteTask(item);
+      }
+    }
   }
 
   async toggleStatus(item: TaskItem): Promise<void> {
@@ -226,10 +306,25 @@ export class SyncService implements vscode.Disposable {
     
     if (!pick || pick.value === item.status) return;
     
-    await client.updateStatus(item.id, pick.value);
-    log.debug(`Updated status -> ${pick.value} for task ${item.id}`);
-    vscode.window.showInformationMessage(`ToDoSync: Updated "${item.title}" to ${pick.value}`);
-    await this.syncCurrentWorkspace();
+    try {
+      await client.updateStatus(item.id, pick.value);
+      log.debug(`Updated status -> ${pick.value} for task ${item.id}`);
+      vscode.window.showInformationMessage(`ToDoSync: Updated "${item.title}" to ${pick.value}`);
+      await this.syncCurrentWorkspace();
+    } catch (error: any) {
+      const errorMsg = error.message || error.toString();
+      log.debug(`Failed to update status: ${errorMsg}`);
+      
+      const action = await vscode.window.showErrorMessage(
+        `ToDoSync: Failed to update status - ${errorMsg}`,
+        'Retry',
+        'Dismiss'
+      );
+      
+      if (action === 'Retry') {
+        await this.toggleStatus(item);
+      }
+    }
   }
 
   async addTask(): Promise<void> {
@@ -278,8 +373,18 @@ export class SyncService implements vscode.Disposable {
       vscode.window.showInformationMessage(`ToDoSync: Task "${title.trim()}" added.`);
       await this.syncCurrentWorkspace();
     } catch (error: any) {
-      vscode.window.showErrorMessage(`ToDoSync: Failed to add task: ${error.message || error}`);
-      log.debug(`Failed to add task: ${error}`);
+      const errorMsg = error.message || error.toString();
+      log.debug(`Failed to add task: ${errorMsg}`);
+      
+      const action = await vscode.window.showErrorMessage(
+        `ToDoSync: Failed to add task - ${errorMsg}`,
+        'Retry',
+        'Dismiss'
+      );
+      
+      if (action === 'Retry') {
+        await this.addTask();
+      }
     }
   }
 

@@ -2,7 +2,7 @@
   "name": "todo-sync",
   "displayName": "ToDoSync",
   "description": "Sync VS Code workspace tasks with Notion projects (Status only)",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "DaddooDev",
   "repository": {
     "type": "git",
@@ -75,6 +75,22 @@
       {
         "command": "todo-sync.refreshLicense",
         "title": "ToDoSync: Refresh License Status"
+      },
+      {
+        "command": "todo-sync.deleteTask",
+        "title": "Delete Task"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "todo-sync.addTask",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t"
+      },
+      {
+        "command": "todo-sync.syncNow",
+        "key": "f5",
+        "mac": "f5"
       }
     ],
     "menus": {
@@ -82,7 +98,13 @@
         {
           "command": "todo-sync.addTask",
           "when": "view == todo-sync-projects",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "todo-sync.syncNow",
+          "when": "view == todo-sync-projects",
+          "group": "navigation@2",
+          "icon": "$(refresh)"
         }
       ],
       "view/item/context": [
@@ -90,6 +112,11 @@
           "command": "todo-sync.toggleStatus",
           "when": "view == todo-sync-projects && viewItem == taskItem",
           "group": "inline"
+        },
+        {
+          "command": "todo-sync.deleteTask",
+          "when": "view == todo-sync-projects && viewItem == taskItem",
+          "group": "destructive"
         }
       ]
     },

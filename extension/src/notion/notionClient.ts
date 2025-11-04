@@ -31,12 +31,39 @@ function notionColorToEmoji(color: string): string {
 
 export class NotionClientWrapper {
   private client: Client;
+  private readonly REQUEST_TIMEOUT = 30000; // 30 seconds
 
   constructor(apiKey: string) {
     this.client = new Client({ 
       auth: apiKey,
       notionVersion: '2025-09-03'  // Supports multi-datasource databases
     });
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, operation: string): Promise<T> {
+    const timeout = new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Operation timed out after ${this.REQUEST_TIMEOUT / 1000}s: ${operation}`)), this.REQUEST_TIMEOUT);
+    });
+    
+    try {
+      return await Promise.race([promise, timeout]);
+    } catch (error: any) {
+      // Enhance error messages
+      if (error.code === 'unauthorized') {
+        throw new Error('Invalid Notion API key. Please check your API key.');
+      } else if (error.code === 'restricted_resource') {
+        throw new Error('Database not shared with integration. Share it in Notion settings.');
+      } else if (error.code === 'object_not_found') {
+        throw new Error('Database or page not found. It may have been deleted.');
+      } else if (error.code === 'rate_limited') {
+        throw new Error('Notion API rate limit reached. Please wait a moment and try again.');
+      } else if (error.message?.includes('timed out')) {
+        throw new Error('Request timed out. Check your internet connection.');
+      } else if (error.message?.includes('ENOTFOUND') || error.message?.includes('network')) {
+        throw new Error('Network error. Check your internet connection.');
+      }
+      throw error;
+    }
   }
 
   async listDatabases(): Promise<{ id: string; title: string }[]> {
@@ -46,12 +73,15 @@ export class NotionClientWrapper {
     
     // Search for datasources (this includes both standalone databases and multi-datasource DBs)
     do {
-      const res = await this.client.search({
-        filter: { property: 'object', value: 'data_source' },
-        sort: { direction: 'ascending', timestamp: 'last_edited_time' },
-        start_cursor: cursor,
-        page_size: 100
-      } as any);
+      const res: any = await this.withTimeout(
+        this.client.search({
+          filter: { property: 'object', value: 'data_source' },
+          sort: { direction: 'ascending', timestamp: 'last_edited_time' },
+          start_cursor: cursor,
+          page_size: 100
+        } as any),
+        'list databases'
+      );
       
       for (const r of res.results as any[]) {
         // For multi-datasource databases, the parent is a database
@@ -91,7 +121,10 @@ export class NotionClientWrapper {
     const tasks: NotionTask[] = [];
     
     // Multi-datasource databases can't be queried directly, need to use search
-    const db = await this.client.databases.retrieve({ database_id: databaseId });
+    const db = await this.withTimeout(
+      this.client.databases.retrieve({ database_id: databaseId }),
+      'retrieve database'
+    );
     const isMultiDatasource = (db as any).data_sources && (db as any).data_sources.length > 0;
     
     if (isMultiDatasource) {
@@ -446,12 +479,25 @@ export class NotionClientWrapper {
   }
 
   async updateStatus(pageId: string, status: string): Promise<void> {
-    await this.client.pages.update({
-      page_id: pageId,
-      properties: {
-        Status: { status: { name: status } }
-      } as any
-    });
+    await this.withTimeout(
+      this.client.pages.update({
+        page_id: pageId,
+        properties: {
+          Status: { status: { name: status } }
+        } as any
+      }),
+      'update status'
+    );
+  }
+
+  async deleteTask(pageId: string): Promise<void> {
+    await this.withTimeout(
+      this.client.pages.update({
+        page_id: pageId,
+        archived: true
+      }),
+      'delete task'
+    );
   }
 
   async createTask(
@@ -527,10 +573,13 @@ export class NotionClientWrapper {
       parent = { type: 'data_source_id', data_source_id: datasourceId };
     }
     
-    const page = await this.client.pages.create({
-      parent: parent,
-      properties
-    });
+    const page = await this.withTimeout(
+      this.client.pages.create({
+        parent: parent,
+        properties
+      }),
+      'create task'
+    );
     
     return page.id;
   }

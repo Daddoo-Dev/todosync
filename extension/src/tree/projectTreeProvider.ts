@@ -15,8 +15,14 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<TaskItem> {
 
   private items: TaskItem[] = [];
   private notionClient: NotionClientWrapper | undefined;
+  private treeView: vscode.TreeView<TaskItem> | undefined;
 
   constructor(private readonly configService: ConfigService) {}
+
+  setTreeView(treeView: vscode.TreeView<TaskItem>) {
+    this.treeView = treeView;
+    this.updateDescription();
+  }
 
   setNotionClient(client: NotionClientWrapper) {
     this.notionClient = client;
@@ -25,10 +31,24 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<TaskItem> {
   setItems(items: TaskItem[]) {
     this.items = items.slice();
     this._onDidChangeTreeData.fire();
+    this.updateDescription();
   }
 
   refresh() {
     this._onDidChangeTreeData.fire();
+  }
+
+  private updateDescription() {
+    if (this.treeView) {
+      const total = this.items.length;
+      const completed = this.items.filter(item => item.status === 'Done').length;
+      
+      if (total > 0) {
+        this.treeView.description = `${completed}/${total} task${total !== 1 ? 's' : ''}`;
+      } else {
+        this.treeView.description = '';
+      }
+    }
   }
 
   getTreeItem(element: TaskItem): vscode.TreeItem {

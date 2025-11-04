@@ -14,8 +14,11 @@ export async function activate(context: vscode.ExtensionContext) {
   treeProvider = new ProjectTreeProvider(configService);
   syncService = new SyncService(context, configService, treeProvider, licenseService);
 
+  const treeView = vscode.window.createTreeView('todo-sync-projects', { treeDataProvider: treeProvider });
+  treeProvider.setTreeView(treeView);
+
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider('todo-sync-projects', treeProvider),
+    treeView,
 
     vscode.commands.registerCommand('todo-sync.setApiKey', async () => {
       const token = await vscode.window.showInputBox({
@@ -65,6 +68,10 @@ export async function activate(context: vscode.ExtensionContext) {
           vscode.window.showWarningMessage('ToDoSync: Could not retrieve license status');
         }
       }
+    }),
+
+    vscode.commands.registerCommand('todo-sync.deleteTask', async (item) => {
+      await syncService?.deleteTask(item);
     }),
 
     vscode.commands.registerCommand('todo-sync.viewProjects', async () => {

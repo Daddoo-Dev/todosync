@@ -77,7 +77,7 @@ export class LicenseService {
             const trimmed = line.trim();
             if (trimmed.startsWith('SUPABASE_ANON_KEY=')) {
               const key = trimmed.substring('SUPABASE_ANON_KEY='.length).trim().replace(/^["']|["']$/g, '');
-              log.debug(`[LICENSE] Found SUPABASE_ANON_KEY: ${key ? key.substring(0, 20) + '...' : 'empty'}`);
+              log.debug(`[LICENSE] Found SUPABASE_ANON_KEY: ${key ? '***' : 'empty'}`);
               if (key) return key;
             }
           }
@@ -104,7 +104,7 @@ export class LicenseService {
     }
 
     const machineId = vscode.env.machineId;
-    log.debug(`[LICENSE] Checking license for machine: ${machineId}`);
+    log.debug(`[LICENSE] Checking license for machine: ${machineId.substring(0, 8)}...`);
     
     try {
       const { data, error } = await this.client

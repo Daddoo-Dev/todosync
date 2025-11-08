@@ -145,7 +145,23 @@ Use ONE database for all projects:
 
 - `todoSync.enableDebug` - Enable debug logging (default: false)
 - `todoSync.refreshIntervalMinutes` - Auto-sync interval (default: 5)
+- `todoSync.hideCompletedTasks` - Hide completed tasks from tree view (default: false)
 - `todoSync.trackedProjects` - Workspace-specific project links (managed automatically)
+
+### Task Organization with Categories
+
+Add a **Category** property (Select type) to your Notion database to organize tasks into collapsible sections:
+
+1. In Notion, add a "Category" property (Select type)
+2. Add options: Features, Bug Fixes, Documentation, etc.
+3. Assign categories to your tasks
+4. Tasks automatically group by category in VS Code with completion counts
+
+**Benefits:**
+- Organize large task lists into logical sections
+- See completion progress per category
+- Collapse categories you're not working on
+- Import automatically assigns categories from `## Section Headers`
 
 ### API Key Storage
 

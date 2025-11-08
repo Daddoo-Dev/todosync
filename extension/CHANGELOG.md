@@ -5,6 +5,15 @@ All notable changes to the ToDoSync extension will be documented in this file.
 ## [1.0.2] - 2025-11-04
 
 ### Added
+- **Category grouping** - Tasks automatically organized into collapsible category sections
+  - Reads Category property from Notion (Select type)
+  - Shows completion count per category (5/10)
+  - Import automatically assigns categories from `## Section Headers`
+  - Collapse/expand categories to focus on what matters
+- **Hide completed tasks** - Optional setting to hide "Done" tasks from tree view
+  - Enable: `todoSync.hideCompletedTasks: true`
+  - Keeps your view focused on active work
+  - Completed tasks still count toward total in header
 - **Keyboard shortcuts** - Ctrl+Shift+T for new task, F5 for sync
 - **Delete task** - Right-click task to delete (archives in Notion)
 - **Task count display** - Shows "X/Y tasks" (completed/total) in tree view header

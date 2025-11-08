@@ -4,10 +4,11 @@ Use this template to bulk import tasks into your Notion database via ToDoSync.
 
 ## Format Rules
 - Use standard markdown checkboxes: `- [ ]` or `- [x]`
-- Tasks under `## Category Name` will be imported (categories are optional, just for organization)
+- **Section headers** (`## Category Name`) automatically assign categories to tasks below them
 - Each checkbox creates one task
 - You can add metadata after the task title using tags:
   - `@status:StatusName` - Set specific status (e.g., @status:In progress)
+  - `@category:CategoryName` - Override section header category
   - `@priority:PriorityName` - Set priority if your DB has priority property
   - `@due:YYYY-MM-DD` - Set due date if your DB has due date property
   

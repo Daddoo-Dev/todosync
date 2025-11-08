@@ -149,6 +149,12 @@
           "default": 5,
           "scope": "window",
           "description": "Auto-refresh interval in minutes"
+        },
+        "todoSync.hideCompletedTasks": {
+          "type": "boolean",
+          "default": false,
+          "scope": "window",
+          "description": "Hide tasks with 'Done' status from the tree view"
         }
       }
     }

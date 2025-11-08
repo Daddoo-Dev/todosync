@@ -4,6 +4,7 @@ export type NotionTask = {
   id: string;
   title: string;
   status: 'Not started' | 'In progress' | 'Done' | string;
+  category?: string;
   lastEditedTime?: string;
 };
 
@@ -171,9 +172,11 @@ export class NotionClientWrapper {
             
             const titleProp = Object.values(r.properties).find((p: any) => p.type === 'title') as any;
             const statusProp = (r.properties['Status'] as any);
+            const categoryProp = (r.properties['Category'] as any);
             const title = (titleProp?.title?.[0]?.plain_text) || 'Untitled';
             const status = statusProp?.status?.name || 'Not started';
-            tasks.push({ id: r.id, title, status, lastEditedTime: r.last_edited_time });
+            const category = categoryProp?.select?.name;
+            tasks.push({ id: r.id, title, status, category, lastEditedTime: r.last_edited_time });
           }
         }
         
@@ -209,9 +212,11 @@ export class NotionClientWrapper {
         for (const r of page.results as any[]) {
           const titleProp = Object.values(r.properties).find((p: any) => p.type === 'title') as any;
           const statusProp = (r.properties['Status'] as any);
+          const categoryProp = (r.properties['Category'] as any);
           const title = (titleProp?.title?.[0]?.plain_text) || 'Untitled';
           const status = statusProp?.status?.name || 'Not started';
-          tasks.push({ id: r.id, title, status, lastEditedTime: r.last_edited_time });
+          const category = categoryProp?.select?.name;
+          tasks.push({ id: r.id, title, status, category, lastEditedTime: r.last_edited_time });
         }
         cursor = (page as any).next_cursor || undefined;
         if (!(page as any).has_more) cursor = undefined;
@@ -506,7 +511,8 @@ export class NotionClientWrapper {
     defaultStatus?: string, 
     projectName?: string, 
     projectId?: string,
-    cachedDbInfo?: { isMultiDatasource: boolean; datasourceId?: string; titlePropertyName: string }
+    cachedDbInfo?: { isMultiDatasource: boolean; datasourceId?: string; titlePropertyName: string },
+    category?: string
   ): Promise<string> {
     // Use cached database info if provided, otherwise fetch it
     let dbInfo = cachedDbInfo;
@@ -565,6 +571,11 @@ export class NotionClientWrapper {
           }
         }
       }
+    }
+    
+    // Set category if provided
+    if (category) {
+      properties.Category = { select: { name: category } };
     }
     
     // For multi-datasource databases, use the datasource as parent

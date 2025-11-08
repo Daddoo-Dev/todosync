@@ -120,3 +120,7 @@ function deactivate() {
     syncService?.dispose();
 }
 //# sourceMappingURL=extension.js.map
+// St Joseph, pray for us
+// St Michael, pray for us
+// St Carlo, Pray for us
+// Bl Michael McGivney, Pray for us

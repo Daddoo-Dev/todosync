@@ -495,7 +495,8 @@ export class SyncService implements vscode.Disposable {
             task.status,
             projectName,
             projectId, // Pass pre-fetched project ID to avoid expensive lookup
-            dbInfo    // Pass pre-fetched database info to avoid 23 API calls
+            dbInfo,    // Pass pre-fetched database info to avoid 23 API calls
+            task.metadata.category  // Pass category from markdown section headers
           );
           successCount++;
           log.debug(`[Import] ✓ Task ${i + 1} created successfully`);
@@ -524,7 +525,19 @@ export class SyncService implements vscode.Disposable {
     // Regex for markdown checkboxes: - [ ] or - [x] or * [ ] or * [x]
     const taskRegex = /^[\s]*[-*]\s*\[([ xX])\]\s*(.+)$/;
     
+    // Regex for section headers: ## Category Name (with optional emoji)
+    const headerRegex = /^##\s+(?:[🎯📦🐛📚✨🔧🌟🚀💡⚙️🎨📊🔐🌐]+\s+)?(.+)$/;
+    
+    let currentCategory: string | undefined = undefined;
+    
     for (const line of lines) {
+      // Check for category header
+      const headerMatch = line.match(headerRegex);
+      if (headerMatch) {
+        currentCategory = headerMatch[1].trim();
+        continue;
+      }
+      
       const match = line.match(taskRegex);
       if (!match) continue;
       
@@ -555,6 +568,16 @@ export class SyncService implements vscode.Disposable {
         taskText = taskText.replace(dueMatch[0], '').trim();
       }
       
+      // @category:CategoryName
+      const categoryMatch = taskText.match(/@category:(.+?)(?:\s+@|$)/);
+      if (categoryMatch) {
+        metadata.category = categoryMatch[1].trim();
+        taskText = taskText.replace(/@category:.+?(?=\s+@|$)/, '').trim();
+      } else if (currentCategory) {
+        // Use section header as category if no explicit @category tag
+        metadata.category = currentCategory;
+      }
+      
       // Determine status
       let status = 'Not started';
       if (metadata.status) {
@@ -569,7 +592,7 @@ export class SyncService implements vscode.Disposable {
         metadata: metadata
       });
       
-      log.debug(`[Parse] Task: "${taskText}", status: "${status}"`);
+      log.debug(`[Parse] Task: "${taskText}", status: "${status}", category: "${metadata.category || 'none'}"`);
     }
     
     log.debug(`[Parse] Total parsed: ${tasks.length} tasks`);
@@ -577,7 +600,13 @@ export class SyncService implements vscode.Disposable {
   }
 
   private toTaskItems(tasks: NotionTask[], project: TrackedProject): TaskItem[] {
-    return tasks.map(t => ({ id: t.id, title: t.title, status: t.status, project }));
+    return tasks.map(t => ({ 
+      id: t.id, 
+      title: t.title, 
+      status: t.status, 
+      category: t.category,
+      project 
+    }));
   }
 
   private nextStatus(current: string): 'Not started' | 'In progress' | 'Done' {

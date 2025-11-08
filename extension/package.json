@@ -2,7 +2,7 @@
   "name": "todo-sync",
   "displayName": "ToDoSync",
   "description": "Sync VS Code workspace tasks with Notion projects (Status only)",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "DaddooDev",
   "repository": {
     "type": "git",

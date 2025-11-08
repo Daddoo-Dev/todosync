@@ -2,7 +2,7 @@
 
 All notable changes to the ToDoSync extension will be documented in this file.
 
-## [1.0.2] - 2025-11-04
+## [1.0.3] - 2025-11-08
 
 ### Added
 - **Category grouping** - Tasks automatically organized into collapsible category sections

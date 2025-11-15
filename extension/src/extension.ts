@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ProjectTreeProvider } from './tree/projectTreeProvider';
+import { ProjectTreeProvider, TaskItem } from './tree/projectTreeProvider';
 import { SyncService } from './services/syncService';
 import { ConfigService } from './services/configService';
 import { LicenseService } from './services/licenseService';
@@ -72,6 +72,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('todo-sync.deleteTask', async (item) => {
       await syncService?.deleteTask(item);
+    }),
+
+    vscode.commands.registerCommand('todo-sync.askAi', async (item?: TaskItem) => {
+      await syncService?.copyTaskForAi(item);
+    }),
+
+    vscode.commands.registerCommand('todo-sync.openSettings', () => {
+      vscode.commands.executeCommand('workbench.action.openSettings', 'todoSync');
     }),
 
     vscode.commands.registerCommand('todo-sync.viewProjects', async () => {

@@ -42,6 +42,10 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<TreeItem> {
     this.updateDescription();
   }
 
+  getCurrentTasks(): TaskItem[] {
+    return this.items.slice();
+  }
+
   refresh() {
     this._onDidChangeTreeData.fire();
   }

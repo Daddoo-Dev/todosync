@@ -2,6 +2,16 @@
 
 All notable changes to the ToDoSync extension will be documented in this file.
 
+## [1.0.5] - 2025-11-08
+
+### Added
+- **Settings command** - Quick access to ToDoSync settings via Command Palette
+
+## [1.0.4] - 2025-11-08
+
+### Added
+- All features from 1.0.3 (category grouping, hide completed, keyboard shortcuts, delete, error handling)
+
 ## [1.0.3] - 2025-11-08
 
 ### Added

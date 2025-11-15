@@ -42,6 +42,7 @@ Sync your VS Code workspace tasks directly with Notion databases. No local markd
 - **⚡ Auto-Refresh** - Automatic sync every 5 minutes + on window focus
 - **🔐 Secure** - API keys stored in VS Code SecretStorage or .env file
 - **💎 Freemium** - Free tier (1 project) or Pro (unlimited projects)
+- **🤖 Ask AI** - Copy any task (plus the mirrored JSON file path) to your clipboard for instant AI help
 
 ## 📦 Installation
 

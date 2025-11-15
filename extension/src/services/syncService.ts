@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 import { ConfigService, TrackedProject } from './configService';
 import { NotionClientWrapper, NotionTask } from '../notion/notionClient';
 import { ProjectTreeProvider, TaskItem } from '../tree/projectTreeProvider';
@@ -9,6 +10,7 @@ import { LicenseService } from './licenseService';
 export class SyncService implements vscode.Disposable {
   private interval: NodeJS.Timeout | undefined;
   private disposed = false;
+  private lastMirrorPath: string | undefined;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -202,6 +204,7 @@ export class SyncService implements vscode.Disposable {
         const tasks = await client.getTasks(tracked.notionDatabaseId, 200, projectFilter);
         const items = this.toTaskItems(tasks, tracked);
         this.tree.setItems(items);
+        await this.mirrorTasksToJson(items, tracked);
         log.debug(`Synced ${items.length} task(s) for workspace '${folder.name}' ${projectFilter ? `(project: ${projectFilter})` : ''}`);
         
         // Show notification only for manual sync (not auto-refresh)
@@ -517,6 +520,47 @@ export class SyncService implements vscode.Disposable {
     await this.syncCurrentWorkspace();
   }
 
+  async copyTaskForAi(item?: TaskItem): Promise<void> {
+    const selectedTask = item ?? (await this.pickTaskForAi());
+    if (!selectedTask) {
+      vscode.window.showInformationMessage('ToDoSync: No task selected. Sync and try again.');
+      return;
+    }
+
+    const mirrorPath = this.ensureMirrorPath(selectedTask.project);
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      project: {
+        name: selectedTask.project.projectName,
+        notionDatabaseId: selectedTask.project.notionDatabaseId,
+        workspacePath: selectedTask.project.path,
+        mirrorFile: mirrorPath
+      },
+      task: {
+        id: selectedTask.id,
+        title: selectedTask.title,
+        status: selectedTask.status,
+        category: selectedTask.category ?? null
+      }
+    };
+
+    const clipText = [
+      'ToDoSync Task Snapshot',
+      `Title: ${selectedTask.title}`,
+      `Status: ${selectedTask.status}`,
+      `Category: ${selectedTask.category ?? 'Uncategorized'}`,
+      `Project: ${selectedTask.project.projectName}`,
+      `Notion Database: ${selectedTask.project.notionDatabaseId}`,
+      `Workspace: ${selectedTask.project.path}`,
+      `Mirror file: ${mirrorPath ?? 'Not generated yet'}`,
+      '',
+      JSON.stringify(payload, null, 2)
+    ].join('\n');
+
+    await vscode.env.clipboard.writeText(clipText);
+    vscode.window.showInformationMessage(`ToDoSync: Copied "${selectedTask.title}" to clipboard for AI assistants.`);
+  }
+
   private parseTasksFromMarkdown(content: string): Array<{ title: string; status: string; metadata: any }> {
     // Split by any line ending (handles CRLF, LF, or CR)
     const lines = content.split(/\r?\n|\r/);
@@ -613,6 +657,72 @@ export class SyncService implements vscode.Disposable {
     if (current === 'Not started') return 'In progress';
     if (current === 'In progress') return 'Done';
     return 'Not started';
+  }
+
+  private async mirrorTasksToJson(items: TaskItem[], project: TrackedProject): Promise<void> {
+    const mirrorDir = path.join(project.path, '.todosync');
+    const mirrorFile = path.join(mirrorDir, 'tasks.json');
+
+    try {
+      await fs.promises.mkdir(mirrorDir, { recursive: true });
+
+      const payload = {
+        generatedAt: new Date().toISOString(),
+        project: {
+          name: project.projectName,
+          notionDatabaseId: project.notionDatabaseId,
+          workspacePath: project.path
+        },
+        totals: {
+          total: items.length,
+          done: items.filter(item => item.status === 'Done').length,
+          inProgress: items.filter(item => item.status === 'In progress').length,
+          notStarted: items.filter(item => item.status === 'Not started').length
+        },
+        tasks: items.map(item => ({
+          id: item.id,
+          title: item.title,
+          status: item.status,
+          category: item.category ?? null
+        }))
+      };
+
+      await fs.promises.writeFile(mirrorFile, JSON.stringify(payload, null, 2), 'utf8');
+      this.lastMirrorPath = mirrorFile;
+      log.debug(`[Mirror] Updated AI data file at ${mirrorFile}`);
+    } catch (error: any) {
+      log.debug(`[Mirror] Failed to update tasks JSON: ${error.message || error}`);
+    }
+  }
+
+  private ensureMirrorPath(project: TrackedProject): string | undefined {
+    if (this.lastMirrorPath && this.lastMirrorPath.startsWith(project.path)) {
+      return this.lastMirrorPath;
+    }
+    const dir = path.join(project.path, '.todosync');
+    return path.join(dir, 'tasks.json');
+  }
+
+  private async pickTaskForAi(): Promise<TaskItem | undefined> {
+    const tasks = this.tree.getCurrentTasks();
+    if (tasks.length === 0) {
+      return undefined;
+    }
+
+    const selection = await vscode.window.showQuickPick(
+      tasks.map(task => ({
+        label: task.title,
+        description: `${task.status}${task.category ? ` · ${task.category}` : ''}`,
+        task
+      })),
+      {
+        title: 'Select task to copy for AI',
+        placeHolder: 'Choose a task',
+        matchOnDescription: true
+      }
+    );
+
+    return selection?.task;
   }
 }
 

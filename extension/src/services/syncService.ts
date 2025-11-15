@@ -527,6 +527,11 @@ export class SyncService implements vscode.Disposable {
       return;
     }
 
+    if (!selectedTask.project) {
+      vscode.window.showErrorMessage('ToDoSync: Task is missing project context. Please sync again.');
+      return;
+    }
+
     const mirrorPath = this.ensureMirrorPath(selectedTask.project);
     const payload = {
       generatedAt: new Date().toISOString(),
@@ -695,7 +700,8 @@ export class SyncService implements vscode.Disposable {
     }
   }
 
-  private ensureMirrorPath(project: TrackedProject): string | undefined {
+  private ensureMirrorPath(project: TrackedProject | undefined): string | undefined {
+    if (!project) return undefined;
     if (this.lastMirrorPath && this.lastMirrorPath.startsWith(project.path)) {
       return this.lastMirrorPath;
     }

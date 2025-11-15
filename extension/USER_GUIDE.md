@@ -12,6 +12,7 @@ Complete guide to getting the most out of ToDoSync.
   - [Changing Task Status](#changing-task-status)
   - [Deleting a Task](#deleting-a-task)
   - [Syncing Tasks](#syncing-tasks)
+  - [Using the Ask AI Sparkle Button](#using-the-ask-ai-sparkle-button)
 - [Advanced Features](#advanced-features)
   - [Bulk Import from Markdown](#bulk-import-from-markdown)
   - [Multi-Project Management](#multi-project-management)
@@ -156,6 +157,24 @@ Complete guide to getting the most out of ToDoSync.
 - Press `F5` in VS Code
 - Click the **Refresh** button in ToDoSync toolbar
 - Command Palette: `ToDoSync: Sync Now`
+
+### Using the Ask AI Sparkle Button
+
+Need to hand a task off to an AI assistant? Use the ✨ Ask AI workflow:
+
+1. Hover over any task in the ToDoSync sidebar to reveal the ✨ inline button.
+2. Click ✨ to copy that task’s full payload to the clipboard (title, status, category, project info, plus the `.todosync/tasks.json` mirror path).
+3. Paste directly into your AI chat so it can open the local JSON snapshot and get to work.
+
+Other access points:
+
+- Toolbar button: Click the ✨ icon in the ToDoSync panel header to choose a task from a quick pick list.
+- Command Palette: Run `ToDoSync: ✨ Ask AI (Copy Task Snapshot)` to trigger the same picker.
+
+Tips:
+
+- Make sure you’ve synced recently so the `.todosync/tasks.json` file is fresh.
+- When no task is selected, the picker shows every synced task with its status + category for fast filtering.
 
 ---
 

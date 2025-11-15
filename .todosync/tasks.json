@@ -1,0 +1,172 @@
+{
+  "generatedAt": "2025-11-15T00:46:26.729Z",
+  "project": {
+    "name": "TodoSync",
+    "notionDatabaseId": "29e78860-176f-80ed-905b-e1b8f7c2adc4",
+    "workspacePath": "c:\\Users\\shawn\\Documents\\github\\todosync"
+  },
+  "totals": {
+    "total": 26,
+    "done": 20,
+    "inProgress": 0,
+    "notStarted": 6
+  },
+  "tasks": [
+    {
+      "id": "2a078860-176f-81ee-a9d4-d2c6b32c56af",
+      "title": "Write FAQ section for common issues",
+      "status": "Not started",
+      "category": "Features"
+    },
+    {
+      "id": "2a478860-176f-8070-ac97-f59f2a5a49d4",
+      "title": "Integrate other major task manager systems",
+      "status": "Not started",
+      "category": "Features"
+    },
+    {
+      "id": "2a478860-176f-8060-8d79-d69401284a3e",
+      "title": "Integrate Microsoft Tasks",
+      "status": "Not started",
+      "category": "Features"
+    },
+    {
+      "id": "2a478860-176f-80e1-95d0-cb8daa7bb62d",
+      "title": "Integrate Google Tasks",
+      "status": "Not started",
+      "category": "Features"
+    },
+    {
+      "id": "2a478860-176f-8087-a501-dc2b60772151",
+      "title": "Add syncing for Todoist",
+      "status": "Not started",
+      "category": "Features"
+    },
+    {
+      "id": "2a478860-176f-80ed-b2a3-ddb3c9a0a8cc",
+      "title": "Add asana, clickup, trello, jira, evernote",
+      "status": "Not started",
+      "category": "Features"
+    },
+    {
+      "id": "2a078860-176f-81f4-a3e4-f7164dfca668",
+      "title": "Test extension on clean install",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-8145-8293-ea2897068781",
+      "title": "Create comprehensive user guide",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-817d-a800-ee1848d07ae3",
+      "title": "Build Notion database template for users",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-819b-b78e-d57c2c6e50ee",
+      "title": "Add loading spinner during sync operations",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-81c5-9017-fad406491aab",
+      "title": "Add request timeout handling (prevent hanging)",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-819f-8761-d72c3a9ec6b8",
+      "title": "Better error messages with \"Retry\" action button",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-811d-993d-dcf4b2eb3e6c",
+      "title": "Display task count in tree view header (\"23 tasks\")",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-81a5-bb51-dd885caf782b",
+      "title": "Add refresh button in tree view toolbar",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-811c-bb8e-f47f1c9a2e1f",
+      "title": "Add keyboard shortcuts (Ctrl+Shift+T for new task, F5 for sync)",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-8100-9f9f-e6f5cb147fd9",
+      "title": "Add \"Copy Notion URL\" context menu item",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-8162-ba3b-dd93c504055a",
+      "title": "Validate API key on save with test connection",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-810c-ae4c-f6acee15fb82",
+      "title": "Publish to VS Code Marketplace",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-81e3-9c7c-e429b8308a29",
+      "title": "Design marketplace banner/icon (120x120)",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-8137-a0b8-d7fc7cde6821",
+      "title": "Write CHANGELOG.md with version history",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-81e3-bafb-f6afac68a872",
+      "title": "Create professional README with screenshots",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-8100-bfcd-eb5fb4819ccf",
+      "title": "Create GitHub issue and PR templates",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-8141-90aa-f064b3027d04",
+      "title": "Add marketplace keywords (notion, todo, tasks, productivity)",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-817a-b489-dfaaafa19840",
+      "title": "Create .vscodeignore to reduce package size from 3.6MB",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-81d7-ba7f-d142015010ea",
+      "title": "Show notification on successful sync (\"Synced 23 tasks\")",
+      "status": "Done",
+      "category": null
+    },
+    {
+      "id": "2a078860-176f-81b5-a8de-daa1602bc720",
+      "title": "Fix multi-datasource project dropdown not appearing",
+      "status": "Done",
+      "category": null
+    }
+  ]
+}

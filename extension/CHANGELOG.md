@@ -2,6 +2,16 @@
 
 All notable changes to the ToDoSync extension will be documented in this file.
 
+## [1.1.6] - 2025-11-15
+
+### Added
+- ✨ **Ask AI sparkle button** on every task row to copy task context + mirror path straight to the clipboard
+- ✨ **Toolbar + command palette action** (`ToDoSync: ✨ Ask AI (Copy Task Snapshot)`) with sparkle iconography
+
+### Changed
+- Updated README and User Guide with new Ask AI workflows
+- Bumped extension manifest to 1.1.6 and refreshed VSIX packaging instructions
+
 ## [1.0.5] - 2025-11-08
 
 ### Added

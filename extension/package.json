@@ -2,7 +2,7 @@
   "name": "todo-sync",
   "displayName": "ToDoSync",
   "description": "Sync VS Code workspace tasks with Notion projects (Status only)",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "publisher": "DaddooDev",
   "repository": {
     "type": "git",
@@ -82,7 +82,8 @@
       },
       {
         "command": "todo-sync.askAi",
-        "title": "ToDoSync: Ask AI About Task"
+        "title": "ToDoSync: ✨ Ask AI (Copy Task Snapshot)",
+        "icon": "$(sparkle)"
       },
       {
         "command": "todo-sync.openSettings",
@@ -113,6 +114,12 @@
           "when": "view == todo-sync-projects",
           "group": "navigation@2",
           "icon": "$(refresh)"
+        },
+        {
+          "command": "todo-sync.askAi",
+          "when": "view == todo-sync-projects",
+          "group": "navigation@3",
+          "icon": "$(sparkle)"
         }
       ],
       "view/item/context": [
@@ -129,7 +136,8 @@
         {
           "command": "todo-sync.askAi",
           "when": "view == todo-sync-projects && viewItem == taskItem",
-          "group": "inline"
+          "group": "inline",
+          "icon": "$(sparkle)"
         }
       ]
     },

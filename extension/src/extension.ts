@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ProjectTreeProvider, TaskItem } from './tree/projectTreeProvider';
+import { ProjectTreeProvider, TaskItem, TreeItem } from './tree/projectTreeProvider';
 import { SyncService } from './services/syncService';
 import { ConfigService } from './services/configService';
 import { LicenseService } from './services/licenseService';
@@ -74,8 +74,9 @@ export async function activate(context: vscode.ExtensionContext) {
       await syncService?.deleteTask(item);
     }),
 
-    vscode.commands.registerCommand('todo-sync.askAi', async (item?: TaskItem) => {
-      await syncService?.copyTaskForAi(item);
+    vscode.commands.registerCommand('todo-sync.askAi', async (arg?: TaskItem | TreeItem) => {
+      const resolvedTask = resolveTaskArgument(arg);
+      await syncService?.copyTaskForAi(resolvedTask);
     }),
 
     vscode.commands.registerCommand('todo-sync.openSettings', () => {
@@ -149,6 +150,17 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   syncService?.dispose();
+}
+
+function resolveTaskArgument(arg: TaskItem | TreeItem | undefined): TaskItem | undefined {
+  if (!arg) return undefined;
+  if ('project' in arg && 'id' in arg && 'status' in arg) {
+    return arg as TaskItem;
+  }
+  if ('task' in arg && arg.task) {
+    return arg.task as TaskItem;
+  }
+  return undefined;
 }
 
 

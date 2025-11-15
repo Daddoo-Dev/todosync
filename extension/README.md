@@ -42,7 +42,7 @@ Sync your VS Code workspace tasks directly with Notion databases. No local markd
 - **⚡ Auto-Refresh** - Automatic sync every 5 minutes + on window focus
 - **🔐 Secure** - API keys stored in VS Code SecretStorage or .env file
 - **💎 Freemium** - Free tier (1 project) or Pro (unlimited projects)
-- **🤖 Ask AI** - Copy any task (plus the mirrored JSON file path) to your clipboard for instant AI help
+- **🤖 Ask AI Sparkle Button** - Click the ✨ button beside any task (or the toolbar icon) to copy full context + local JSON path for AI assistants
 
 ## 📦 Installation
 
@@ -79,6 +79,17 @@ Sync your VS Code workspace tasks directly with Notion databases. No local markd
 - **Import Tasks from File** - Bulk import from markdown files
 - **View Tracked Projects** - Manage all linked projects
 - **Unlink Project** - Remove current workspace link
+- **Ask AI (Copy Task Snapshot)** - Use the ✨ command to grab the selected task’s details + `.todosync/tasks.json` location for AI prompts
+
+### Ask AI Sparkle Button
+
+- Click the ✨ icon that appears inline on every task row to copy that task’s payload to your clipboard instantly.
+- Use the ✨ toolbar icon (top-right of the ToDoSync tree) or run `ToDoSync: ✨ Ask AI (Copy Task Snapshot)` to pick from all synced tasks.
+- The clipboard payload always includes:
+  - Task title, status, and category
+  - Project name + Notion database ID
+  - Local mirror file path (`.todosync/tasks.json`) so AI tools can open the latest snapshot
+- Great for dropping straight into an AI chat without hunting through Notion.
 
 ### Bulk Import Format
 

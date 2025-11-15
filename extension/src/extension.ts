@@ -11,7 +11,7 @@ let licenseService: LicenseService | undefined;
 export async function activate(context: vscode.ExtensionContext) {
   const configService = new ConfigService(context);
   licenseService = new LicenseService(context);
-  treeProvider = new ProjectTreeProvider(configService);
+  treeProvider = new ProjectTreeProvider();
   syncService = new SyncService(context, configService, treeProvider, licenseService);
 
   const treeView = vscode.window.createTreeView('todo-sync-projects', { treeDataProvider: treeProvider });
@@ -139,7 +139,19 @@ export async function activate(context: vscode.ExtensionContext) {
       if (confirm === 'Unlink') {
         await configService.removeProjectByPath(folder.uri.fsPath);
         vscode.window.showInformationMessage(`Unlinked ${tracked.projectName}`);
-        treeProvider?.setItems([]);
+        treeProvider?.setItems([], { suppressEmptyState: true });
+        treeProvider?.showEmptyState([
+          {
+            label: '✓ Notion API key configured',
+            icon: 'check'
+          },
+          {
+            label: 'Step 2 · Connect this workspace',
+            description: 'Link a Notion database/project',
+            icon: 'plug',
+            command: 'todo-sync.linkProject'
+          }
+        ]);
       }
     })
   );

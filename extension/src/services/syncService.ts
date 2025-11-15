@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigService, TrackedProject } from './configService';
 import { NotionClientWrapper, NotionTask } from '../notion/notionClient';
-import { ProjectTreeProvider, TaskItem } from '../tree/projectTreeProvider';
+import { ProjectTreeProvider, TaskItem, EmptyStateEntry } from '../tree/projectTreeProvider';
 import { log } from './log';
 import { LicenseService } from './licenseService';
 
@@ -171,14 +171,44 @@ export class SyncService implements vscode.Disposable {
 
   async syncCurrentWorkspace(showNotification: boolean = false): Promise<void> {
     const folder = vscode.workspace.workspaceFolders?.[0];
-    if (!folder) return;
-    const tracked = this.config.getTrackedProjects().find(p => p.path === folder.uri.fsPath);
-    if (!tracked) {
-      this.tree.setItems([]);
+    if (!folder) {
+      this.showEmptyState([
+        {
+          label: '📂 Open a folder to start using ToDoSync',
+          command: 'workbench.action.files.openFolder'
+        }
+      ]);
       return;
     }
     const apiKey = await this.config.getApiKey();
-    if (!apiKey) return;
+    if (!apiKey) {
+      this.showEmptyState([
+        {
+          label: '🔑 Step 1 · Add your Notion API key',
+          description: 'Stored securely in VS Code',
+          command: 'todo-sync.setApiKey'
+        },
+        {
+          label: '🔌 Next · Connect this workspace',
+          description: 'Link a Notion database after the key is saved'
+        }
+      ]);
+      return;
+    }
+    const tracked = this.config.getTrackedProjects().find(p => p.path === folder.uri.fsPath);
+    if (!tracked) {
+      this.showEmptyState([
+        {
+          label: '✅ Notion API key configured'
+        },
+        {
+          label: '🔌 Step 2 · Connect this workspace',
+          description: 'Link a Notion database/project',
+          command: 'todo-sync.linkProject'
+        }
+      ]);
+      return;
+    }
     
     try {
       await vscode.window.withProgress({
@@ -203,7 +233,9 @@ export class SyncService implements vscode.Disposable {
         
         const tasks = await client.getTasks(tracked.notionDatabaseId, 200, projectFilter);
         const items = this.toTaskItems(tasks, tracked);
-        this.tree.setItems(items);
+        this.tree.setItems(items, { suppressEmptyState: true });
+        this.tree.clearEmptyState();
+        this.tree.showQuickActions(this.buildQuickActions(items.length > 0));
         await this.mirrorTasksToJson(items, tracked);
         log.debug(`Synced ${items.length} task(s) for workspace '${folder.name}' ${projectFilter ? `(project: ${projectFilter})` : ''}`);
         
@@ -698,6 +730,41 @@ export class SyncService implements vscode.Disposable {
     } catch (error: any) {
       log.debug(`[Mirror] Failed to update tasks JSON: ${error.message || error}`);
     }
+  }
+
+  private showEmptyState(entries: EmptyStateEntry[]) {
+    this.tree.setItems([], { suppressEmptyState: true });
+    this.tree.showQuickActions([]);
+    this.tree.showEmptyState(entries);
+  }
+
+  private buildQuickActions(hasTasks: boolean): EmptyStateEntry[] {
+    const actions: EmptyStateEntry[] = [
+      {
+        label: '➕ Add task',
+        description: 'Create a new Notion task',
+        command: 'todo-sync.addTask'
+      },
+      {
+        label: '🔄 Sync now',
+        description: 'Refresh from Notion',
+        command: 'todo-sync.syncNow'
+      },
+      {
+        label: '✨ Ask AI',
+        description: 'Copy a task snapshot to clipboard',
+        command: 'todo-sync.askAi'
+      }
+    ];
+
+    if (!hasTasks) {
+      actions.push({
+        label: '⚪ No tasks yet',
+        description: 'Click Add task or Sync after creating tasks in Notion'
+      });
+    }
+
+    return actions;
   }
 
   private ensureMirrorPath(project: TrackedProject | undefined): string | undefined {

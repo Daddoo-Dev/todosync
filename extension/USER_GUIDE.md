@@ -92,6 +92,8 @@ Complete guide to getting the most out of ToDoSync.
 5. If your database has a Project property, select a project or create a new one
 6. Wait for initial sync to complete
 
+> 💡 The ToDoSync panel now guides you through these steps in order—if you ever forget what’s next, just look at the inline checklist (Add API Key → Connect Workspace → Add Tasks).
+
 **You're all set!** Tasks will now appear in the ToDoSync sidebar.
 
 ---

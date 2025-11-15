@@ -2,6 +2,25 @@
 
 All notable changes to the ToDoSync extension will be documented in this file.
 
+## [1.1.8] - 2025-11-15
+
+### Added
+- 🔘 **Quick action rows** (Add task, Sync now, Ask AI) rendered directly inside the ToDoSync tree for a polished VS Code layout
+
+### Changed
+- Toolbar buttons removed from the header; everything is now handled via inline info rows for consistency
+- Guided onboarding copy tweaked for better progression messaging
+
+## [1.1.7] - 2025-11-15
+
+### Added
+- 🧭 **Guided onboarding** inside the tree view with step-by-step info rows (open folder → add API key → connect workspace)
+- ➕ **Toolbar icons** (Add Task `$(add)`, Sync `$(refresh)`, Ask AI `$(sparkle)`) for a consistent look in VS Code and Cursor
+
+### Changed
+- Empty states now render professional info rows instead of raw text/markdown
+- Default version bumped to 1.1.7
+
 ## [1.1.6] - 2025-11-15
 
 ### Added

@@ -1,12 +1,12 @@
 {
   "name": "todo-sync",
   "displayName": "ToDoSync",
-  "description": "Sync VS Code workspace tasks with Notion projects (Status only)",
-  "version": "1.1.6",
+  "description": "Sync VS Code workspace tasks with Notion projects",
+  "version": "1.1.8",
   "publisher": "DaddooDev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/shawnmcpeek/todosync"
+    "url": "https://github.com/Daddoo-Dev/todosync"
   },
   "icon": "todosync.png",
   "galleryBanner": {
@@ -42,7 +42,8 @@
       },
       {
         "command": "todo-sync.syncNow",
-        "title": "ToDoSync: Sync Now"
+        "title": "Sync Now",
+        "category": "ToDoSync"
       },
       {
         "command": "todo-sync.syncAll",
@@ -103,25 +104,6 @@
       }
     ],
     "menus": {
-      "view/title": [
-        {
-          "command": "todo-sync.addTask",
-          "when": "view == todo-sync-projects",
-          "group": "navigation@1"
-        },
-        {
-          "command": "todo-sync.syncNow",
-          "when": "view == todo-sync-projects",
-          "group": "navigation@2",
-          "icon": "$(refresh)"
-        },
-        {
-          "command": "todo-sync.askAi",
-          "when": "view == todo-sync-projects",
-          "group": "navigation@3",
-          "icon": "$(sparkle)"
-        }
-      ],
       "view/item/context": [
         {
           "command": "todo-sync.toggleStatus",

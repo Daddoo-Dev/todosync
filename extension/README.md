@@ -43,6 +43,8 @@ Sync your VS Code workspace tasks directly with Notion databases. No local markd
 - **🔐 Secure** - API keys stored in VS Code SecretStorage or .env file
 - **💎 Freemium** - Free tier (1 project) or Pro (unlimited projects)
 - **🤖 Ask AI Sparkle Button** - Click the ✨ button beside any task (or the toolbar icon) to copy full context + local JSON path for AI assistants
+- **🧭 Guided Onboarding** - Inline prompts show exactly what to do next (add API key, connect workspace, add your first task)
+- **🔘 Inline Quick Actions** - Add task, sync now, and Ask AI buttons live directly in the ToDoSync tree for a clean VS Code UI
 
 ## 📦 Installation
 

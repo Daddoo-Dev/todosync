@@ -70,8 +70,13 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }),
 
-    vscode.commands.registerCommand('todo-sync.deleteTask', async (item) => {
-      await syncService?.deleteTask(item);
+    vscode.commands.registerCommand('todo-sync.deleteTask', async (arg?: TaskItem | TreeItem) => {
+      const resolved = resolveTaskArgument(arg);
+      if (!resolved) {
+        await vscode.window.showWarningMessage('ToDoSync: Could not determine which task to delete.');
+        return;
+      }
+      await syncService?.deleteTask(resolved);
     }),
 
     vscode.commands.registerCommand('todo-sync.askAi', async (arg?: TaskItem | TreeItem) => {

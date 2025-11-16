@@ -2,6 +2,11 @@
 
 All notable changes to the ToDoSync extension will be documented in this file.
 
+## [1.1.9] - 2025-11-15
+
+### Fixed
+- Delete action could fail with “undefined id” when invoked from certain UI contexts; command now resolves the underlying task correctly so deletion uses the proper Notion page ID
+
 ## [1.1.8] - 2025-11-15
 
 ### Added

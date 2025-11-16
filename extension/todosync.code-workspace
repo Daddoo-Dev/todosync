@@ -1,0 +1,57 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../zivora"
+		}
+	],
+	"settings": {
+		"todoSync.trackedProjects": [
+			{
+				"path": "c:\\Users\\shawn\\Documents\\github\\Scythe & Seek",
+				"notionDatabaseId": "29278860-176f-8083-8451-d5fb354072b9",
+				"projectName": "Scythe & Seek"
+			},
+			{
+				"path": "c:\\Users\\shawn\\Documents\\github\\notion-git-sync",
+				"notionDatabaseId": "29278860-176f-80fb-89af-feef219d121f",
+				"projectName": "notion-git-sync",
+				"statusOptions": [
+					{
+						"name": "Not started",
+						"color": "default"
+					},
+					{
+						"name": "In progress",
+						"color": "blue"
+					},
+					{
+						"name": "Done",
+						"color": "green"
+					}
+				]
+			},
+			{
+				"path": "c:\\Users\\shawn\\Documents\\github\\todosync",
+				"notionDatabaseId": "29e78860-176f-80ed-905b-e1b8f7c2adc4",
+				"projectName": "TodoSync",
+				"statusOptions": [
+					{
+						"name": "Not started",
+						"color": "gray"
+					},
+					{
+						"name": "In progress",
+						"color": "blue"
+					},
+					{
+						"name": "Done",
+						"color": "green"
+					}
+				]
+			}
+		]
+	}
+}
